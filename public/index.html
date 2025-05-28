@@ -1,0 +1,2434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ERS - Real Soccer</title>
+    <link rel="icon" type="image/png" href="erslogoicon.png">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #001746 0%, #003399 100%);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        nav {
+            width: 250px;
+            background: rgba(0, 51, 153, 0.95);
+            height: 100vh;
+            padding: 30px 0;
+            position: fixed;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 5px 0 15px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(5px);
+        }
+
+        nav .discord-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    transition: transform 0.3s ease;
+}
+
+nav .discord-link:hover {
+    background: none;
+    box-shadow: none;
+    transform: scale(1.1);
+    text-decoration: none;
+}
+
+nav a.discord-link,
+nav a.discord-link:hover {
+    box-shadow: none !important;
+}
+
+.medal-gold td:first-child::before {
+    content: "🥇 "; /* Gold medal emoji or icon */
+    color: #FFD700;
+}
+
+.medal-silver td:first-child::before {
+    content: "🥈 "; /* Silver medal emoji or icon */
+    color: #C0C0C0;
+}
+
+.medal-bronze td:first-child::before {
+    content: "🥉 "; /* Bronze medal emoji or icon */
+    color: #CD7F32;
+}
+
+/* Hide the rank number for medal positions, keep only the medal emoji */
+.medal-gold td:first-child,
+.medal-silver td:first-child,
+.medal-bronze td:first-child {
+    font-size: 0; /* Hide the text content */
+    line-height: 0; /* Ensure no extra space */
+}
+
+/* Ensure the medal emoji is visible */
+.medal-gold td:first-child::before,
+.medal-silver td:first-child::before,
+.medal-bronze td:first-child::before {
+    font-size: 24px; /* Restore emoji size */
+    line-height: 28px; /* Align with table row height */
+    display: inline-block;
+}
+
+/* Explicitly size the Discord icon */
+.discord-icon {
+    width: 45px; /* Set desired width */
+    height: 45px; /* Set desired height */
+}
+
+.save-button {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #34D399, #10B981);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    margin-top: 20px;
+}
+
+.save-button:hover:not(:disabled) {
+    background: linear-gradient(135deg, #10B981, #34D399);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 15px rgba(16, 185, 129, 0.5);
+}
+
+.save-button:disabled {
+    background: linear-gradient(135deg, #6B7280, #4B5563);
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+        nav a {
+            display: flex;
+            align-items: center;
+            color: #fff;
+            padding: 15px 20px;
+            text-decoration: none;
+            font-size: 18px;
+            width: 80%;
+            justify-content: center;
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        nav a:hover {
+            background: rgba(41, 128, 185, 0.3);
+            transform: translateX(10px) scale(1.05);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        nav button {
+            background: none;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        nav button:hover {
+            transform: scale(1.1);
+        }
+
+        nav svg {
+            height: 130px;
+            width: auto;
+            margin-bottom: 30px;
+            margin-top: 60px;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+        }
+
+        .container {
+            margin-left: 250px;
+            padding: 40px;
+            width: calc(100% - 250px);
+            flex-grow: 1;
+            background: linear-gradient(135deg, rgba(0, 23, 70, 0.9), rgba(0, 51, 153, 0.2));
+            position: relative;
+            overflow: hidden;
+        }
+
+        header {
+            padding: 20px 0;
+            text-align: center;
+            background: rgba(41, 127, 185, 0);
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+
+        header img {
+            height: 100px;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+    padding: 10px;
+}
+
+.pagination button {
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #2563EB, #60A5FA);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.pagination button:hover:not(:disabled) {
+    background: linear-gradient(135deg, #60A5FA, #2563EB);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 15px rgba(96, 165, 250, 0.5);
+}
+
+.pagination button:disabled {
+    background: linear-gradient(135deg, #6B7280, #4B5563);
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.pagination .page-number {
+    padding: 10px 15px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600; /* Consistent font-weight to avoid size jump */
+    transition: all 0.3s ease;
+    display: inline-flex; /* Ensure consistent sizing */
+    justify-content: center;
+    align-items: center;
+    min-width: 40px; /* Ensure consistent width */
+    box-sizing: border-box; /* Include padding in size calculations */
+}
+
+.pagination .page-number:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.05); /* Subtle scale instead of translateY */
+}
+
+.pagination .page-number.active {
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    color: #1E40AF;
+    font-weight: 600; /* Match non-active font-weight */
+    transform: scale(1.1); /* Slightly larger scale for emphasis */
+    box-shadow: 0 4px 10px rgba(255, 215, 0, 0.5); /* Subtle glow */
+}
+
+        section {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .active {
+            display: block;
+        }
+
+        .login-form {
+            position: relative;
+            background: linear-gradient(135deg, #1E40AF, #3B82F6);
+            padding: 0;
+            border-radius: 15px;
+            max-width: 500px;
+            margin: 40px auto;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .login-form:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 35px rgba(59, 130, 246, 0.4);
+        }
+
+        .login-form h3 {
+            background: linear-gradient(90deg, #1E40AF, #60A5FA);
+            padding: 15px 20px;
+            text-align: center;
+            margin: 0 0 20px 0;
+            font-size: 18px;
+            color: #fff;
+            letter-spacing: 1.5px;
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .login-form form {
+            padding: 20px;
+        }
+
+        .login-form input {
+            width: 100%;
+            padding: 16px;
+            margin: 10px 0;
+            border-radius: 10px;
+            border: none;
+            background: linear-gradient(135deg, rgba(30, 64, 175, 0.9), rgba(59, 130, 246, 0.7));
+            color: #fff;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .login-form input:focus {
+            background: linear-gradient(135deg, #2563EB, #60A5FA);
+            box-shadow: 0 0 12px rgba(96, 165, 250, 0.6);
+            outline: none;
+        }
+
+        .login-form input::placeholder {
+            color: #A0B1C5;
+            opacity: 0.8;
+        }
+
+        .login-form button {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #2563EB, #60A5FA);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .login-form button:hover {
+            background: linear-gradient(135deg, #60A5FA, #2563EB);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(96, 165, 250, 0.5);
+        }
+
+        .login-form .remember-me {
+    display: flex;
+    align-items: center;
+    margin: 10px 0;
+    padding: 0 20px;
+}
+
+.login-form .remember-me input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 14px; /* Smaller size */
+    height: 14px; /* Smaller size */
+    margin-right: 10px;
+    background: rgba(30, 64, 175, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px; /* Slightly smaller radius for proportionality */
+    cursor: pointer;
+    position: relative;
+}
+
+.login-form .remember-me input[type="checkbox"]:checked::before {
+    content: '✔';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #fff;
+    font-size: 10px; /* Smaller checkmark for smaller box */
+}
+
+.login-form .remember-me input[type="checkbox"]:checked {
+    background: #60A5FA;
+}
+
+.login-form .remember-me label {
+    color: #fff;
+    font-size: 16px;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 400;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+}
+
+        .error-message {
+            color: #E74C3C;
+            text-align: center;
+            margin: 10px 20px 0;
+            font-size: 15px;
+            font-style: italic;
+            animation: shake 0.5s ease;
+        }
+
+        .profile-info {
+            position: relative;
+            background: linear-gradient(135deg, #1E40AF, #3B82F6);
+            padding: 30px;
+            border-radius: 15px;
+            margin: 40px auto;
+            width: 450px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            color: #fff;
+        }
+
+        .profile-info:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 35px rgba(59, 130, 246, 0.4);
+        }
+
+        .profile-info h3 {
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 28px;
+            letter-spacing: 1.5px;
+            color: #fff;
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            background: linear-gradient(90deg, #1E40AF, #60A5FA);
+            padding: 10px 20px;
+            border-radius: 10px;
+        }
+
+        .profile-info p {
+            margin: 10px 0;
+            padding: 12px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            font-size: 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .profile-info p:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateX(8px);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .profile-info p strong {
+            color: #fff;
+            font-weight: 700;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+
+        .profile-info p span {
+            color: #FFD700;
+            font-weight: 600;
+            text-align: right;
+        }
+
+        .buy-button {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #2563EB, #60A5FA);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .buy-button:hover {
+            background: linear-gradient(135deg, #60A5FA, #2563EB);
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 6px 15px rgba(96, 165, 250, 0.5);
+        }
+
+        section h2 {
+            font-size: 36px;
+            text-align: center;
+            margin-bottom: 40px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+            background: linear-gradient(90deg, #60A5FA, #2563EB);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        #vipColorRow, #vipMessageRow, #vipCelebrationRow {
+            margin: 15px 0;
+            font-size: 18px;
+            padding: 12px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #vipColorRow:hover, #vipMessageRow:hover, #vipCelebrationRow:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateX(8px);
+        }
+
+        #vipColorPicker {
+            width: 40px;
+            height: 40px;
+            border: none;
+            cursor: pointer;
+            background: transparent;
+            border-radius: 50%;
+            transition: transform 0.3s ease;
+            padding: 0;
+            margin: 0;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        #vipColorPicker:hover {
+            transform: scale(1.15);
+        }
+
+        #vipColorPicker::-webkit-color-swatch-wrapper { padding: 0; }
+        #vipColorPicker::-webkit-color-swatch { border: none; border-radius: 50%; }
+        #vipColorPicker::-moz-color-swatch { border: none; border-radius: 50%; }
+
+        #vipMessageInput {
+            width: 120px;
+            padding: 16px;
+            margin: 0;
+            border-radius: 10px;
+            border: none;
+            background: linear-gradient(135deg, rgba(30, 64, 175, 0.9), rgba(59, 130, 246, 0.7));
+            color: #fff;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        #vipMessageInput:focus {
+            background: linear-gradient(135deg, #2563EB, #60A5FA);
+            box-shadow: 0 0 12px rgba(96, 165, 250, 0.6);
+            outline: none;
+        }
+
+        #vipMessageInput::placeholder {
+            color: #A0B1C5;
+            opacity: 1;
+        }
+
+        #vipCelebrationSelect {
+            width: 140px;
+            padding: 16px;
+            border-radius: 10px;
+            border: none;
+            box-shadow: 0 0 12px rgba(96, 165, 250, 0.6);
+            background: linear-gradient(135deg, rgba(30, 64, 175, 0.9), rgba(59, 130, 246, 0.7));
+            color: #FFFFFF;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="%23fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>');
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+        }
+
+        #vipCelebrationSelect:focus {
+            background: linear-gradient(135deg, #2563EB, #60A5FA);
+            box-shadow: 0 0 12px rgba(96, 165, 250, 0.6);
+            outline: none;
+        }
+
+        #vipCelebrationSelect option {
+            background: #1E40AF;
+            color: #FFFFFF;
+        }
+
+        /* Existing styles */
+.ranking-table {
+    position: relative;
+    background: linear-gradient(135deg, #1E40AF, #3B82F6);
+    padding: 0;
+    border-radius: 15px;
+    margin: 20px auto;
+    max-width: 800px;
+    width: 100%;
+    max-width: 800px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.137);
+    transition: all 0.3s ease;
+    border: none;
+    overflow: hidden;
+}
+
+/* Ensure table takes full width */
+.ranking-table table {
+    width: 100%;
+    border-collapse: collapse;
+    border-spacing: 0;
+    color: #fff;
+    table-layout: fixed;
+}
+
+/* Header styles */
+.ranking-table th,
+.ranking-table td {
+    padding: 10px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    text-align: center;
+    height: 60px;
+    line-height: 28px;
+}
+
+.ranking-table td {
+    padding: 20px 10px;
+}
+
+.ranking-table th {
+    background: linear-gradient(90deg, #1E40AF, #60A5FA);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    font-size: 18px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #fff;
+    font-weight: 700;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    transition: background 0.3s ease, transform 0.3s ease;
+}
+
+.ranking-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.15);
+    padding: 18px 20px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0);
+    cursor: pointer;
+}
+
+.ranking-table thead {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+}
+
+/* Set Rank and Elo to same width */
+.ranking-table th:first-child,
+.ranking-table td:first-child {
+    width: 20%; /* Rank column */
+    border-top-left-radius: 15px; /* For th */
+    padding-left: 12px;
+}
+
+.ranking-table th:nth-child(2),
+.ranking-table td:nth-child(2) {
+    width: 60%; /* Username column */
+    padding-left: 20px;
+}
+
+.ranking-table th:nth-child(3),
+.ranking-table td:nth-child(3) {
+    width: 20%; /* Elo column */
+    font-weight: 600;
+    padding-left: 25px;
+}
+
+/* Footer styles (your-position) */
+.ranking-table .your-position td:first-child {
+    width: 20%; /* Match Rank column */
+    color: #FFD700;
+}
+
+.ranking-table .your-position td:nth-child(2) {
+    width: 60%; /* Match Username column */
+    color: #E5E7EB;
+}
+
+.ranking-table .your-position td:nth-child(3) {
+    width: 20%; /* Match Elo column */
+    color: #60A5FA;
+}
+
+/* Rest of your existing .ranking-table styles remain unchanged */
+.ranking-table thead:after {
+    content: '';
+    display: block;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.2);
+    margin-top: -2px;
+}
+
+.ranking-table tbody {
+    display: block;
+    height: 360px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    width: 100%;
+}
+
+.ranking-table tbody tr {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+    transition: all 0.3s ease;
+}
+
+.ranking-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.15);
+    padding-left: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0);
+    cursor: pointer;
+}
+
+.ranking-table td:first-child {
+    color: #FFD700;
+    font-weight: 700;
+}
+
+.ranking-table td:nth-child(2) {
+    color: #E5E7EB;
+    font-weight: 600;
+}
+
+.ranking-table td:nth-child(3) {
+    color: #FFD700;
+    font-weight: 600;
+}
+
+.ranking-table .your-position td {
+    padding: 18px 20px;
+    text-align: center;
+    border-bottom: none;
+    color: #fff;
+    font-weight: 600;
+}
+
+.ranking-table tbody::-webkit-scrollbar {
+    width: 10px;
+}
+
+.ranking-table tbody::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 5px;
+}
+
+.ranking-table tbody::-webkit-scrollbar-thumb {
+    background: linear-gradient(90deg, #60A5FA, #2563EB);
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.ranking-table tbody::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(90deg, #2563EB, #60A5FA);
+}
+
+.ranking-table tfoot {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+}
+
+.ranking-table .your-position {
+    display: table;
+    width: 100%;
+    background: rgba(0, 51, 153, 0.95);
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    transition: all 0.3s ease;
+    box-shadow: 0 -2px 15px rgba(0, 0, 0, 0.2);
+}
+
+.rooms-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 30px; /* Increased space between cards */
+    padding: 20px;
+}
+
+/* Style for room cards */
+.room-card {
+    position: relative;
+    width: 500px;
+    height: 400px;
+    background: linear-gradient(135deg, #1E40AF, #3B82F6);
+    border-radius: 20px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    text-align: center;
+    cursor: pointer;
+    padding: 15px;
+}
+
+.room-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 35px rgba(59, 130, 246, 0.4);
+}
+
+.room-card h3 {
+    font-size: 22px;
+    margin-top: 10px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    letter-spacing: 2px;
+    color: #fff;
+}
+
+.room-card p {
+    font-size: 15px;
+    font-weight: 600;
+    margin-top: 30px;
+    color: #fff;
+}
+
+.room-card .team-section {
+    width: 100%;
+    margin-top: 40px;
+}
+
+.room-card .team-section p {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #fff;
+}
+
+.players-container {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    margin-top: 20px;
+    gap: 10px;
+}
+
+.players-column {
+    width: 33%;
+    text-align: center;
+    padding: 10px 5px;
+    border-radius: 10px;
+}
+
+.players-column h4 {
+    font-size: 17px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.players-column ul {
+    list-style-type: none;
+    padding: 0;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.players-column li {
+    font-size: 14px;
+    color: #fff;
+    padding: 3px 0;
+}
+
+/* Red Team Column */
+.red-team {
+    background-color: rgba(239, 68, 68, 0.3); /* Semi-transparent red */
+    border: 1px solid rgba(239, 68, 68, 0.5);
+}
+
+/* Blue Team Column */
+.blue-team {
+    background-color: rgba(59, 130, 246, 0.3); /* Semi-transparent blue */
+    border: 1px solid rgba(59, 130, 246, 0.5);
+}
+
+/* Spectators Column */
+.spec-team {
+    background-color: rgba(156, 163, 175, 0.3); /* Semi-transparent gray */
+    border: 1px solid rgba(156, 163, 175, 0.5);
+}
+
+        .career-path {
+    width: 100%;
+    margin: 0 0 40px;
+    padding: 20px;
+    background: linear-gradient(135deg, #1E40AF, #3B82F6);
+    border-radius: 15px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    position: relative;
+}
+
+.coin-bar {
+    width: 100%;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.coin-bar p {
+    color: #fff;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.coin-icon {
+    vertical-align: middle;
+}
+
+.path-lines {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1400px; /* Match .path-container min-width */
+    height: 600px; /* Ensure it covers all tiers */
+    pointer-events: none;
+    z-index: 0;
+}
+
+.scroll-container {
+    overflow-x: auto;
+    overflow-y: hidden;
+    width: 100%;
+    cursor: grab;
+    user-select: none;
+    position: relative;
+    -webkit-overflow-scrolling: touch;
+}
+
+.scroll-container:active {
+    cursor: grabbing;
+}
+
+.path-container {
+    min-width: 1400px; /* Ensures scrolling on smaller screens */
+    padding: 20px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.path-lines {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.tier {
+    width: 100%;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    margin-bottom: 40px;
+    position: relative;
+    z-index: 1;
+}
+
+.tier[data-tier="1"] { border: 2px solid #FFD700; }
+.tier[data-tier="2"] { border: 2px solid #60A5FA; }
+.tier[data-tier="3"] { border: 2px solid #FF5555; }
+
+.tier h3 {
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 24px;
+    letter-spacing: 1.5px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    color: #FFD700;
+}
+
+.paths {
+    display: flex;
+    justify-content: space-around;
+    gap: 60px;
+    width: 100%;
+}
+
+.plane-path {
+    display: flex;
+    align-items: center;
+    gap: 40px;
+    flex-wrap: nowrap;
+}
+
+.plane-card {
+    background: rgba(0, 51, 153, 0.9);
+    padding: 15px;
+    border-radius: 10px;
+    width: 220px;
+    text-align: center;
+    transition: all 0.3s ease;
+    opacity: 0.7;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    position: relative;
+}
+
+.plane-card[data-unlocked="true"] {
+    opacity: 1;
+    border-color: #FFD700;
+}
+
+.plane-card:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 15px rgba(96, 165, 250, 0.5);
+}
+
+.plane-card img {
+    width: 100%;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+
+.plane-card h4 {
+    color: #FFD700;
+    font-size: 18px;
+    margin-bottom: 8px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.plane-card p {
+    color: #fff;
+    font-size: 14px;
+    margin-bottom: 5px;
+}
+
+.select-button {
+    width: 100%;
+    padding: 10px;
+    background: linear-gradient(135deg, #2563EB, #60A5FA);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    margin-top: 10px;
+}
+
+.select-button.active {
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    cursor: default;
+}
+
+.select-button:hover:not(.active):not(:disabled) {
+    background: linear-gradient(135deg, #60A5FA, #2563EB);
+    transform: translateY(-2px);
+}
+
+.select-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.path-group {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    gap: 40px;
+    width: 100%;
+}
+
+.path-wrapper {
+    flex: 1;
+    min-width: 300px;
+    padding: 15px;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+/* Distinct colors for each path */
+.path-wrapper[data-path="1"] {
+    background: linear-gradient(135deg, rgba(255, 87, 51, 0.2), rgba(255, 195, 0, 0.2)); /* Attackers: Orange-ish */
+    border: 1px solid rgba(255, 87, 51, 0.5);
+}
+
+.path-wrapper[data-path="2"] {
+    background: linear-gradient(135deg, rgba(46, 204, 113, 0.2), rgba(39, 174, 96, 0.2)); /* Midfielders: Green-ish */
+    border: 1px solid rgba(46, 204, 113, 0.5);
+}
+
+.path-wrapper[data-path="3"] {
+    background: linear-gradient(135deg, rgba(52, 152, 219, 0.2), rgba(41, 128, 185, 0.2)); /* Defenders: Blue-ish */
+    border: 1px solid rgba(52, 152, 219, 0.5);
+}
+
+.path-wrapper[data-path="4"] {
+    background: linear-gradient(135deg, rgba(155, 89, 182, 0.2), rgba(142, 68, 173, 0.2)); /* Goalkeepers: Purple-ish */
+    border: 1px solid rgba(155, 89, 182, 0.5);
+}
+
+.path-wrapper:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+}
+
+.path-title {
+    text-align: center;
+    margin-bottom: 15px;
+    font-size: 20px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #FFD700;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.plane-path {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: nowrap;
+}
+
+.nation-selector {
+    text-align: center;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.flag-circle {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-size: cover;
+    background-position: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid #2563EB;
+    filter: grayscale(100%);
+    opacity: 0.7;
+}
+
+.flag-circle.selected {
+    filter: grayscale(0%);
+    opacity: 1;
+    border: 2px solid #FFD700;
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(96, 165, 250, 0.5);
+}
+
+.flag-circle:hover:not(.selected) {
+    filter: grayscale(50%);
+    opacity: 0.9;
+}
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Sidebar Navigation -->
+<nav>
+    <button onclick="showPage('profile')">
+        <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+        <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+        <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="1080" height="1080" viewBox="0 0 1080 1080" xml:space="preserve">
+        <desc>Created with Fabric.js 5.2.4</desc>
+        <defs></defs>
+        <g transform="matrix(1 0 0 1 540 540)" id="fee340c4-65b9-4b6a-b95e-be5e08462b4d"><rect style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1; visibility: hidden;" vector-effect="non-scaling-stroke" x="-540" y="-540" rx="0" ry="0" width="1080" height="1080" /></g>
+        <g transform="matrix(1 0 0 1 540 540)" id="31091872-5db4-4356-bf78-920e2683dc41"></g>
+        <g transform="matrix(8.79 0 0 8.79 540 540)" id="Layer_1"><path style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;" transform=" translate(-61.44, -61.45)" d="M 61.44 0 C 69.75999999999999 0 77.69 1.66 84.94 4.66 L 85.05 4.71 C 92.52 7.82 99.25 12.370000000000001 104.88 18.01 L 104.88 18.01 C 110.53999999999999 23.660000000000004 115.1 30.43 118.22 37.96 C 121.23 45.2 122.88 53.14 122.88 61.45 C 122.88 69.77000000000001 121.22 77.7 118.22 84.95 L 118.17 85.06 C 115.05 92.53 110.51 99.26 104.87 104.89 L 104.87 104.89 C 99.22 110.55 92.45 115.11 84.92 118.23 C 77.68 121.24000000000001 69.74000000000001 122.89 61.43000000000001 122.89 C 53.120000000000005 122.89 45.18000000000001 121.23 37.93000000000001 118.23 L 37.82000000000001 118.18 C 30.35000000000001 115.07000000000001 23.620000000000008 110.52000000000001 17.99000000000001 104.89000000000001 L 18 104.87 C 12.34 99.21 7.78 92.45 4.66 84.94 C 1.66 77.69 0 69.76 0 61.44 C 0 53.11999999999999 1.66 45.19 4.66 37.94 L 4.71 37.83 C 7.82 30.36 12.370000000000001 23.63 18 18 L 18.01 18 C 23.67 12.34 30.43 7.779999999999999 37.95 4.66 C 45.19 1.66 53.12 0 61.44 0 L 61.44 0 z M 16.99 94.47 L 17.229999999999997 94.33 C 23.129999999999995 91.03999999999999 38.489999999999995 89.95 44.87 85.5 C 45.339999999999996 84.8 45.839999999999996 83.78 46.33 82.67 C 47.059999999999995 81 47.73 79.17 48.15 77.93 C 46.37 75.83000000000001 44.839999999999996 73.46000000000001 43.379999999999995 71.13000000000001 L 38.55 63.44000000000001 C 36.79 60.80000000000001 35.87 58.40000000000001 35.809999999999995 56.420000000000016 C 35.779999999999994 55.490000000000016 35.94 54.65000000000001 36.28999999999999 53.90000000000001 C 36.64999999999999 53.12000000000001 37.19999999999999 52.47000000000001 37.94999999999999 51.97000000000001 C 38.29999999999999 51.73000000000001 38.68999999999999 51.530000000000015 39.11999999999999 51.38000000000001 C 38.79999999999999 47.21000000000001 38.68999999999999 41.96000000000001 38.88999999999999 37.56000000000001 C 38.989999999999995 36.52000000000001 39.199999999999996 35.47000000000001 39.48 34.43000000000001 C 40.72 30.020000000000007 43.809999999999995 26.470000000000006 47.64 24.03000000000001 C 49.75 22.680000000000007 52.07 21.67000000000001 54.480000000000004 20.99000000000001 C 56.02 20.550000000000008 53.17 15.65000000000001 54.760000000000005 15.48000000000001 C 62.43000000000001 14.690000000000008 74.84 21.70000000000001 80.2 27.49000000000001 C 82.88000000000001 30.390000000000008 84.57000000000001 34.24000000000001 84.93 39.33000000000001 L 84.63000000000001 51.87000000000001 L 84.63000000000001 51.87000000000001 C 85.97000000000001 52.28000000000001 86.83000000000001 53.13000000000001 87.17000000000002 54.500000000000014 C 87.56000000000002 56.030000000000015 87.14000000000001 58.170000000000016 85.84000000000002 61.100000000000016 L 85.84000000000002 61.100000000000016 C 85.82000000000002 61.15000000000001 85.79000000000002 61.210000000000015 85.76000000000002 61.26000000000001 L 80.25000000000001 70.33000000000001 C 78.23000000000002 73.66000000000001 76.17000000000002 77.01000000000002 73.50000000000001 79.64000000000001 C 73.75 80 74 80.35 74.24 80.7 C 75.33 82.3 76.42999999999999 83.9 77.83999999999999 85.33 C 77.88999999999999 85.38 77.92999999999999 85.42999999999999 77.96 85.48 C 84.3 89.96000000000001 99.72999999999999 91.05000000000001 105.64999999999999 94.35000000000001 L 105.88999999999999 94.49000000000001 C 112.75999999999999 85.27000000000001 116.82 73.84 116.82 61.46000000000001 C 116.82 46.17000000000001 110.61999999999999 32.32000000000001 100.6 22.31000000000001 C 90.6 12.28000000000001 76.75 6.080000000000009 61.459999999999994 6.080000000000009 C 46.169999999999995 6.080000000000009 32.31999999999999 12.280000000000008 22.309999999999995 22.300000000000008 C 12.27 32.3 6.07 46.15 6.07 61.44 C 6.07 73.82 10.13 85.25 16.99 94.47 L 16.99 94.47 L 16.99 94.47 z" stroke-linecap="round" />
+        </g>
+        </svg>
+    </button>
+    <a href="#" onclick="showPage('profile')">PROFILE</a>
+    <a href="#" onclick="showPage('rooms')">ROOMS</a>
+    <a href="#" onclick="showPage('home')">RANKING</a>
+    <a href="https://discord.com/invite/UVqMEne4MQ" target="_blank" class="discord-link" style="margin-top: auto;">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 127.14 96.36" class="discord-icon">
+            <path fill="#fff" d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53.58S36.18,41.46,42.45,41.46s11.47,5.7,11.47,12.12S48.72,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53.58S78.41,41.46,84.68,41.46s11.47,5.7,11.47,12.12S90.95,65.69,84.68,65.69Z"/>
+        </svg>
+    </a>
+</nav>
+
+<!-- Main Content -->
+<div class="container">
+    <header>
+        <img src="erslogotrans.png" alt="ERS Logo">
+    </header>
+
+    <div>
+        <!-- Profile Page Content -->
+        <section id="profile" class="active">
+            <h2>Profile Page</h2>
+            <div class="login-form" id="loginForm">
+                <h3>Login</h3>
+                <form onsubmit="return login(event)">
+                    <input type="text" id="username" placeholder="Username" required>
+                    <input type="password" id="password" placeholder="Password" required>
+                    <div class="remember-me">
+                        <input type="checkbox" id="rememberMe" name="rememberMe">
+                        <label for="rememberMe">Remember me</label>
+                    </div>
+                    <button type="submit">Login</button>
+                </form>
+                <p class="error-message" id="errorMessage"></p>
+            </div>
+            <div class="profile-info" id="profileInfo" style="display:none;">
+                <h3><span id="profileUsername"></span></h3>
+                <div>
+                    <p><strong>⭐ Elo:</strong> <span id="userElo"></span></p>
+                    <p><strong>⏱️ Games:</strong> <span id="userGames"></span></p>
+                    <p><strong>😃 Wins:</strong> <span id="userWins"></span></p>
+                    <p><strong>😐 Draws:</strong> <span id="userDraws"></span></p>
+                    <p><strong>😒 Losses:</strong> <span id="userLosses"></span></p>
+                    <p><strong>⚽ Goals:</strong> <span id="userGoals"></span></p>
+                    <p><strong>🅰️ Assists:</strong> <span id="userAssists"></span></p>
+                    <p><strong>🥅 Clean Sheets:</strong> <span id="userCleansheets"></span></p>
+                    <p id="vipRow"><strong>👑 VIP:</strong> <span style="display: flex; align-items: center; gap: 10px; flex-direction: row-reverse;"><span id="userVIP"></span><button id="buyVipButton" class="buy-button" style="display:none;" onclick="buyVip()">Buy VIP</button></span></p>
+                    <p id="vipColorRow" style="display: none;"><strong>🎨 VIP Color:</strong><span><input type="color" id="vipColorPicker" onchange="markPendingChange('color', this.value)"></span></p>
+                    <p id="vipMessageRow" style="display: none;"><strong>💬 VIP Message:</strong><span><input type="text" id="vipMessageInput" maxlength="10" placeholder="VIP Message" oninput="validateVipMessage(this); markPendingChange('message', this.value)"></span></p>
+                    <p id="vipCelebrationRow" style="display: none;"><strong>🎉 VIP Celebration:</strong><span><select id="vipCelebrationSelect" onchange="markPendingChange('celebration', this.value)"><option value="none">None</option><option value="explosion">Explosion</option><option value="blinking">Blinking</option><option value="machinegun">Machine Gun</option><option value="invisible">Invisibility</option><option value="magicalaura">Magical Aura</option></select></span></p>
+                    <button id="saveButton" class="save-button" disabled onclick="saveProfileChanges()">Save Changes</button>
+                </div>
+            </div>
+        </section>
+        <!-- Home Page Content -->
+        <section id="home">
+    <h2>Player Rankings</h2>
+    <div class="ranking-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Username</th>
+                    <th>Elo</th>
+                </tr>
+            </thead>
+            <tbody id="rankingBody">
+                <!-- Rankings will be populated by JavaScript -->
+            </tbody>
+            <tfoot>
+                <tr class="your-position">
+                    <td id="userRankCell">Not ranked (Login to see)</td>
+                    <td id="userNameCell"></td>
+                    <td id="userEloCell"></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    <div class="pagination" id="pagination">
+        <button id="prevPage" disabled>Previous</button>
+        <div id="pageNumbers"></div>
+        <button id="nextPage">Next</button>
+    </div>
+</section>
+
+<script>
+    let pendingChanges = {
+        color: null,
+        message: null,
+        celebration: null
+    };
+    let originalVipSettings = { color: null, message: null, celebration: null };
+
+    let currentUserAuth = localStorage.getItem('currentUserAuth') || null; // Load from localStorage
+    let vipCheckInterval = null;
+
+    function showPage(pageId) {
+    document.querySelectorAll('section').forEach(section => {
+        section.classList.remove('active');
+    });
+    document.getElementById(pageId).classList.add('active');
+
+    // Load data specific to the page
+    if (pageId === 'home') {
+        loadRankings(); // Your existing function
+    } else if (pageId === 'rooms') {
+        loadRooms();
+    } else if (pageId === 'career') {
+        selectNation('argentina'); // Your existing function
+    }
+    // If you have profile-specific logic, add it here (e.g., updateVipUI())
+}
+
+function markPendingChange(type, value) {
+    console.log(`Marking change: ${type} = ${value}`);
+    // Compare against original saved values
+    if (type === 'color' && value !== originalVipSettings.color) {
+        pendingChanges.color = value;
+    } else if (type === 'message' && value !== originalVipSettings.message) {
+        pendingChanges.message = value;
+    } else if (type === 'celebration' && value !== originalVipSettings.celebration) {
+        pendingChanges.celebration = value;
+    } else {
+        pendingChanges[type] = null; // Reset if no change
+    }
+
+    console.log('Pending changes:', pendingChanges);
+    updateSaveButtonState();
+}
+
+function updateSaveButtonState() {
+    const saveButton = document.getElementById('saveButton');
+    const hasChanges = Object.values(pendingChanges).some(change => change !== null);
+    console.log('Has changes:', hasChanges, 'Pending changes:', pendingChanges);
+    saveButton.disabled = !hasChanges;
+}
+
+function showError(message, type = 'error') {
+    const errorMessage = document.getElementById('errorMessage');
+    errorMessage.textContent = message;
+    errorMessage.style.color = type === 'success' ? '#34D399' : '#E74C3C';
+    errorMessage.style.display = 'block';
+    setTimeout(() => {
+        errorMessage.style.display = 'none';
+    }, 3000);
+}
+
+async function saveProfileChanges() {
+    console.log('saveProfileChanges called, pending changes:', pendingChanges);
+    const userId = localStorage.getItem('userId');
+    if (!userId) {
+        showError('User not logged in');
+        console.log('No userId found in localStorage');
+        return;
+    }
+
+    const updates = {};
+    if (pendingChanges.color !== null) updates.vip_color = pendingChanges.color;
+    if (pendingChanges.message !== null) updates.vipMessage = pendingChanges.message;
+    if (pendingChanges.celebration !== null) updates.vipCelebration = pendingChanges.celebration;
+
+    if (Object.keys(updates).length === 0) {
+        console.log('No updates to save');
+        return;
+    }
+
+    try {
+        console.log('Sending updates:', updates);
+
+        // Update VIP color
+        if (updates.vip_color) {
+            const response = await fetch('/api/update-vip-color', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ auth: userId, color: updates.vip_color })
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to update VIP color');
+            }
+        }
+
+        // Update VIP message
+        if (updates.vipMessage) {
+            const response = await fetch('/api/updateVipMessage', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ auth: userId, vipMessage: updates.vipMessage })
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to update VIP message');
+            }
+        }
+
+        // Update VIP celebration
+        if (updates.vipCelebration) {
+            const response = await fetch('/api/updateVipCelebration', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ auth: userId, vipCelebration: updates.vipCelebration })
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to update VIP celebration');
+            }
+        }
+
+        // Update originalVipSettings with new saved values
+        if (updates.vip_color) originalVipSettings.color = updates.vip_color;
+        if (updates.vipMessage) originalVipSettings.message = updates.vipMessage;
+        if (updates.vipCelebration) originalVipSettings.celebration = updates.vipCelebration;
+
+        // Clear pending changes and update UI
+        Object.keys(pendingChanges).forEach(key => pendingChanges[key] = null);
+        updateSaveButtonState();
+
+        // Update displayed values
+        if (updates.vip_color) document.getElementById('vipColorPicker').value = updates.vip_color;
+        if (updates.vipMessage) document.getElementById('vipMessageInput').value = updates.vipMessage;
+        if (updates.vipCelebration) document.getElementById('vipCelebrationSelect').value = updates.vipCelebration;
+
+        console.log('Changes saved successfully');
+        showError('Changes saved successfully!', 'success');
+    } catch (error) {
+        console.error('Error saving profile changes:', error);
+        showError('Failed to save changes');
+    }
+}
+
+async function updateProfileInfo(userId) {
+    try {
+        // Fetch player stats from /api/getPlayerProfile
+        const statsResponse = await fetch(`/api/getPlayerProfile?auth=${userId}`);
+        if (!statsResponse.ok) {
+            const errorData = await statsResponse.json();
+            throw new Error(errorData.error || 'Failed to fetch player stats');
+        }
+        const { profile: stats } = await statsResponse.json();
+
+        // Fetch VIP status from /api/vip-status
+        const vipResponse = await fetch('/api/vip-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ auth: userId })
+        });
+        if (!vipResponse.ok) {
+            const errorData = await vipResponse.json();
+            throw new Error(errorData.error || 'Failed to fetch VIP status');
+        }
+        const vipData = await vipResponse.json();
+
+        // Fetch username from /api/login or another endpoint
+        const loginResponse = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ auth: userId })
+        });
+        const loginData = await loginResponse.json();
+        if (!loginResponse.ok) {
+            throw new Error(loginData.error || 'Failed to fetch username');
+        }
+
+        // Reset pending changes
+        pendingChanges = { color: null, message: null, celebration: null };
+        console.log('Profile loaded, pending changes reset:', pendingChanges);
+
+        // Store original VIP settings
+        originalVipSettings = {
+            color: vipData.vipColor || '#FFD700',
+            message: vipData.vipMessage || '',
+            celebration: vipData.vipCelebration || 'none'
+        };
+        console.log('Original VIP settings:', originalVipSettings);
+
+        updateSaveButtonState();
+
+        // Update profile info
+        document.getElementById('profileUsername').textContent = loginData.username || 'Unknown';
+        document.getElementById('userElo').textContent = stats.points || 0;
+        document.getElementById('userGames').textContent = stats.games_played || 0;
+        document.getElementById('userWins').textContent = stats.wins || 0;
+        document.getElementById('userDraws').textContent = stats.draws || 0;
+        document.getElementById('userLosses').textContent = stats.losses || 0;
+        document.getElementById('userGoals').textContent = stats.goals || 0;
+        document.getElementById('userAssists').textContent = stats.assists || 0;
+        document.getElementById('userCleansheets').textContent = stats.clean_sheets || 0;
+        document.getElementById('userVIP').textContent = vipData.isVip ? 'Yes' : 'No';
+        document.getElementById('buyVipButton').style.display = vipData.isVip ? 'none' : 'inline-block';
+
+        // Always show VIP fields, but lock them for non-VIP users
+        document.getElementById('vipColorRow').style.display = 'flex';
+        document.getElementById('vipMessageRow').style.display = 'flex';
+        document.getElementById('vipCelebrationRow').style.display = 'flex';
+
+        const vipColorPicker = document.getElementById('vipColorPicker');
+        const vipMessageInput = document.getElementById('vipMessageInput');
+        const vipCelebrationSelect = document.getElementById('vipCelebrationSelect');
+
+        vipColorPicker.value = vipData.vipColor || '#FFD700';
+        vipMessageInput.value = vipData.vipMessage || '';
+        vipCelebrationSelect.value = vipData.vipCelebration || 'none';
+
+        if (vipData.isVip) {
+            // Enable fields for VIP users
+            vipColorPicker.disabled = false;
+            vipMessageInput.disabled = false;
+            vipCelebrationSelect.disabled = false;
+
+            // Remove lock classes
+            vipColorPicker.classList.remove('locked');
+            vipMessageInput.classList.remove('locked');
+            vipCelebrationSelect.classList.remove('locked');
+        } else {
+            // Disable fields for non-VIP users
+            vipColorPicker.disabled = true;
+            vipMessageInput.disabled = true;
+            vipCelebrationSelect.disabled = true;
+
+            // Add lock classes
+            vipColorPicker.classList.add('locked');
+            vipMessageInput.classList.add('locked');
+            vipCelebrationSelect.classList.add('locked');
+        }
+
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('profileInfo').style.display = 'block';
+    } catch (error) {
+        console.error('Error fetching profile:', error);
+        showError('Failed to load profile');
+    }
+}
+
+async function loadRooms() {
+    try {
+        const res = await fetch('/api/room-link');
+        const { room_link, total_players, red_players = [], blue_players = [], spec_players = [], blue_score, red_score } = await res.json();
+
+        const roomsContainer = document.getElementById('roomsContainer');
+        roomsContainer.innerHTML = '';
+
+        const roomCard = document.createElement('div');
+        roomCard.className = 'room-card';
+        roomCard.innerHTML = `
+            <h3>🌍ERS | Real Soccer</h3>
+            <h3>Score: <span>${red_score}-${blue_score}</span></h3>
+            <p>Total Players: <span>${total_players}/20</span></p>
+            <div class="players-container">
+                <div class="players-column red-team">
+                    <h4>Red Team</h4>
+                    <ul>${red_players.map(player => `<li>${player}</li>`).join('')}</ul>
+                </div>
+                <div class="players-column spec-team">
+                    <h4>Spectators</h4>
+                    <ul>${spec_players.map(player => `<li>${player}</li>`).join('')}</ul>
+                </div>
+                <div class="players-column blue-team">
+                    <h4>Blue Team</h4>
+                    <ul>${blue_players.map(player => `<li>${player}</li>`).join('')}</ul>
+                </div>
+            </div>
+        `;
+        
+        roomCard.onclick = () => window.open(room_link, '_blank');
+        roomsContainer.appendChild(roomCard);
+
+    } catch (err) {
+        const roomsContainer = document.getElementById('roomsContainer');
+        roomsContainer.innerHTML = '<p class="error-message">Error loading rooms. Please try again.</p>';
+        console.error('Error in loadRooms:', err);
+    }
+}
+
+function selectNation(nation) {
+    const flags = document.querySelectorAll('.flag-circle');
+    flags.forEach(flag => {
+        flag.classList.remove('selected');
+        if (flag.dataset.nation === nation) {
+            flag.classList.add('selected');
+        }
+    });
+    loadNationPaths(nation);
+}
+
+function loadNationPaths(nation) {
+    const pathContainer = document.getElementById('pathContainer');
+    pathContainer.innerHTML = '';
+    const nationInfo = nationData[nation];
+    let planeIdCounter = 0;
+
+    nationInfo.tiers.forEach((tier, tierIndex) => {
+        const tierDiv = document.createElement('div');
+        tierDiv.className = 'tier';
+        tierDiv.dataset.tier = tierIndex + 1;
+        tierDiv.innerHTML = `<h3>${tier.name}</h3>`;
+        const pathGroup = document.createElement('div');
+        pathGroup.className = 'path-group';
+
+        tier.paths.forEach((path, pathIndex) => {
+            const pathWrapper = document.createElement('div');
+            pathWrapper.className = 'path-wrapper';
+            pathWrapper.dataset.path = pathIndex + 1;
+            pathWrapper.innerHTML = `<h4 class="path-title">${path.name} Path</h4>`;
+            const planePath = document.createElement('div');
+            planePath.className = 'plane-path';
+
+            path.players.forEach(player => {
+                planeIdCounter++;
+                const planeCard = document.createElement('div');
+                planeCard.className = 'plane-card';
+                planeCard.dataset.unlocked = player.unlocked;
+                planeCard.dataset.planeId = `${tierIndex + 1}-${pathIndex + 1}-${planeIdCounter}`;
+                // Use player's image URL, fallback to a default if not provided
+                const playerImage = player.image || 'https://via.placeholder.com/100x100.png?text=No+Image';
+                planeCard.innerHTML = `
+                    <img src="${playerImage}" alt="${player.name}">
+                    <h4>${player.name}</h4>
+                    <p>Speed: ${player.speed}</p>
+                    <p>Cost: ${player.cost === 0 ? 'Free' : player.cost + ' Coins'}</p>
+                    <button class="select-button" data-action="${player.unlocked ? 'select' : 'unlock'}">${player.unlocked ? 'Select' : 'Unlock'}</button>
+                `;
+                if (player.unlocked && planeIdCounter === 1) {
+                    planeCard.querySelector('.select-button').classList.add('active');
+                    planeCard.querySelector('.select-button').innerText = 'Selected';
+                }
+                planePath.appendChild(planeCard);
+            });
+
+            pathWrapper.appendChild(planePath);
+            pathGroup.appendChild(pathWrapper);
+        });
+
+        tierDiv.appendChild(pathGroup);
+        pathContainer.appendChild(tierDiv);
+    });
+
+    // The rest of the function (event listeners, path lines, etc.) remains unchanged
+    const planeCards = document.querySelectorAll('.plane-card');
+    let currentCoins = parseInt(document.getElementById('currentCoins').innerText);
+
+    // Build path connections
+    const pathConnections = {};
+    const tiers = document.querySelectorAll('.tier');
+    tiers.forEach(tier => {
+        const tierNum = parseInt(tier.dataset.tier);
+        const planeCardsInTier = tier.querySelectorAll('.plane-card');
+        planeCardsInTier.forEach(card => {
+            const planeId = card.dataset.planeId;
+            const [tierIdx, pathIdx] = planeId.split('-').map(Number);
+            if (tierIdx < nationInfo.tiers.length) {
+                const nextTier = document.querySelector(`.tier[data-tier="${tierIdx + 1}"]`);
+                if (nextTier) {
+                    const nextPathCards = nextTier.querySelectorAll(`.path-wrapper[data-path="${pathIdx}"] .plane-card`);
+                    pathConnections[planeId] = Array.from(nextPathCards).map(card => card.dataset.planeId);
+                }
+            }
+        });
+    });
+
+    const drawPathLines = () => {
+        const svg = document.querySelector('.path-lines');
+        const scrollContainer = document.querySelector('.scroll-container');
+        const pathContainer = document.getElementById('pathContainer');
+
+        const containerRect = pathContainer.getBoundingClientRect();
+        svg.setAttribute('width', Math.max(1400, scrollContainer.scrollWidth));
+        svg.setAttribute('height', Math.max(600, containerRect.height));
+        svg.innerHTML = '';
+
+        planeCards.forEach(card => {
+            const rect = card.getBoundingClientRect();
+            const offsetX = rect.left - scrollContainer.getBoundingClientRect().left + scrollContainer.scrollLeft;
+            const offsetY = rect.top - scrollContainer.getBoundingClientRect().top + scrollContainer.scrollTop;
+            card.dataset.x = offsetX + (rect.width / 2);
+            card.dataset.y = offsetY + (rect.height / 2);
+        });
+
+        const pathLines = [];
+        planeCards.forEach(card => {
+            const planeId = card.dataset.planeId;
+            const nextPlaneIds = pathConnections[planeId] || [];
+            nextPlaneIds.forEach(nextPlaneId => {
+                const nextPlane = document.querySelector(`.plane-card[data-plane-id="${nextPlaneId}"]`);
+                if (nextPlane) {
+                    pathLines.push({
+                        x1: parseFloat(card.dataset.x),
+                        y1: parseFloat(card.dataset.y) + 20,
+                        x2: parseFloat(nextPlane.dataset.x),
+                        y2: parseFloat(nextPlane.dataset.y) - 20
+                    });
+                }
+            });
+        });
+
+        pathLines.forEach(line => {
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', `M${line.x1},${line.y1} L${line.x2},${line.y2}`);
+            path.setAttribute('stroke', '#FFD700');
+            path.setAttribute('stroke-width', '2');
+            path.setAttribute('stroke-dasharray', '5,5');
+            svg.appendChild(path);
+        });
+    };
+
+    function isPreviousPlaneUnlocked(planeId) {
+        const [tierNum, pathNum] = planeId.split('-').map(Number);
+        if (tierNum === 1) return true;
+
+        const prevTier = document.querySelector(`.tier[data-tier="${tierNum - 1}"]`);
+        if (!prevTier) return false;
+
+        const prevPathCards = prevTier.querySelectorAll(`.path-wrapper[data-path="${pathNum}"] .plane-card`);
+        return Array.from(prevPathCards).some(card => card.dataset.unlocked === 'true');
+    }
+
+    planeCards.forEach(card => {
+        const button = card.querySelector('.select-button');
+        const cost = parseInt(card.querySelector('p:nth-child(3)').innerText.split(' ')[1]) || 0;
+        const planeId = card.dataset.planeId;
+
+        if (card.dataset.unlocked !== 'true' && !isPreviousPlaneUnlocked(planeId)) {
+            button.disabled = true;
+        }
+
+        button.onclick = () => {
+            const isUnlocked = card.dataset.unlocked === 'true';
+
+            if (button.classList.contains('active')) return;
+
+            if (isUnlocked) {
+                planeCards.forEach(c => {
+                    const btn = c.querySelector('.select-button');
+                    btn.classList.remove('active');
+                    btn.innerText = 'Select';
+                });
+                button.classList.add('active');
+                button.innerText = 'Selected';
+            } else if (currentCoins >= cost && isPreviousPlaneUnlocked(planeId)) {
+                currentCoins -= cost;
+                document.getElementById('currentCoins').innerText = currentCoins;
+                card.dataset.unlocked = 'true';
+                card.style.opacity = '1';
+                button.innerText = 'Select';
+                button.dataset.action = 'select';
+                button.disabled = false;
+
+                const [tierNum, pathNum] = planeId.split('-').map(Number);
+                const nextTier = document.querySelector(`.tier[data-tier="${tierNum + 1}"]`);
+                if (nextTier) {
+                    const nextPathCards = nextTier.querySelectorAll(`.path-wrapper[data-path="${pathNum}"] .plane-card`);
+                    nextPathCards.forEach(nextCard => {
+                        if (nextCard.dataset.unlocked !== 'true') {
+                            nextCard.querySelector('.select-button').disabled = false;
+                        }
+                    });
+                }
+
+                drawPathLines();
+            } else if (currentCoins < cost) {
+                alert('Not enough coins to unlock this player!');
+            } else {
+                alert('You must unlock at least one player from the previous tier in this path first!');
+            }
+        };
+    });
+
+    const scrollContainer = document.querySelector('.scroll-container');
+    let isDragging = false;
+    let startX;
+    let scrollLeft;
+
+    scrollContainer.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        startX = e.pageX - scrollContainer.offsetLeft;
+        scrollLeft = scrollContainer.scrollLeft;
+        scrollContainer.style.cursor = 'grabbing';
+    });
+
+    scrollContainer.addEventListener('mouseleave', () => {
+        isDragging = false;
+        scrollContainer.style.cursor = 'grab';
+    });
+
+    scrollContainer.addEventListener('mouseup', () => {
+        isDragging = false;
+        scrollContainer.style.cursor = 'grab';
+    });
+
+    scrollContainer.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        e.preventDefault();
+        const x = e.pageX - scrollContainer.offsetLeft;
+        const walk = (x - startX) * 2;
+        scrollContainer.scrollLeft = scrollLeft - walk;
+        drawPathLines();
+    });
+
+    scrollContainer.addEventListener('touchstart', (e) => {
+        isDragging = true;
+        startX = e.touches[0].pageX - scrollContainer.offsetLeft;
+        scrollLeft = scrollContainer.scrollLeft;
+    });
+
+    scrollContainer.addEventListener('touchend', () => {
+        isDragging = false;
+    });
+
+    scrollContainer.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        const x = e.touches[0].pageX - scrollContainer.offsetLeft;
+        const walk = (x - startX) * 2;
+        scrollContainer.scrollLeft = scrollLeft - walk;
+        drawPathLines();
+    });
+
+    window.addEventListener('resize', drawPathLines);
+    drawPathLines();
+}
+
+    function validateVipMessage(input) {
+        input.value = input.value.replace(/[^a-zA-Z]/g, '').slice(0, 10);
+    }
+
+    async function checkAndUpdateVipStatus() {
+    if (!currentUserAuth) return { isVip: false, vipColor: null, vipMessage: null, vipCelebration: null };
+
+    try {
+        const res = await fetch('http://localhost:3000/api/vip-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ auth: currentUserAuth })
+        });
+
+        if (!res.ok) throw new Error('Failed to fetch VIP status');
+        
+        const data = await res.json();
+        return data;
+    } catch (err) {
+        console.error('Error fetching VIP status:', err);
+        return { isVip: false, vipColor: null, vipMessage: null, vipCelebration: null };
+    }
+}
+
+
+    async function updateVipUI() {
+        const { isVip, vipColor, vipMessage, vipCelebration } = await checkAndUpdateVipStatus();
+        const userVIP = document.getElementById('userVIP');
+        const buyButton = document.getElementById('buyVipButton');
+        const vipColorRow = document.getElementById('vipColorRow');
+        const vipColorPicker = document.getElementById('vipColorPicker');
+        const vipMessageRow = document.getElementById('vipMessageRow');
+        const vipMessageInput = document.getElementById('vipMessageInput');
+        const vipCelebrationRow = document.getElementById('vipCelebrationRow');
+        const vipCelebrationSelect = document.getElementById('vipCelebrationSelect');
+
+        userVIP.innerText = isVip ? 'Yes' : 'No';
+        buyButton.style.display = isVip ? 'none' : 'inline-block';
+        vipColorRow.style.display = isVip ? 'flex' : 'none';
+        vipMessageRow.style.display = isVip ? 'flex' : 'none';
+        vipCelebrationRow.style.display = isVip ? 'flex' : 'none';
+
+        if (!vipColorPicker.dataset.updating && !vipColorPicker.dataset.pendingUpdate) {
+            vipColorPicker.value = vipColor || '#ffffff';
+        }
+        vipMessageInput.value = vipMessage || '';
+        vipCelebrationSelect.value = vipCelebration || 'none';
+    }
+
+    async function login(event) {
+    event.preventDefault();
+    
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    const rememberMe = document.getElementById('rememberMe').checked;
+    const errorMessage = document.getElementById('errorMessage');
+
+    try {
+        console.log('Attempting login for username:', username);
+        const res = await fetch('http://localhost:3000/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            console.error('Login failed:', data.error || 'Unknown error');
+            errorMessage.textContent = data.error || 'Login failed';
+            return;
+        }
+
+        // Store userId and auth in localStorage
+        if (!data.auth) {
+            console.error('No auth in API response:', data);
+            errorMessage.textContent = 'Error: Auth not provided by server';
+            return;
+        }
+        console.log('Login successful, setting auth:', data.auth);
+        currentUserAuth = data.auth; // Also set the currentUserAuth variable
+        const expiry = rememberMe ? Date.now() + 30 * 24 * 60 * 60 * 1000 : Date.now() + 24 * 60 * 60 * 1000; // 30 days or 1 day
+        localStorage.setItem('authData', JSON.stringify({ auth: data.auth, username, expiry }));
+        localStorage.setItem('userId', data.auth);
+
+        // Success: show profile data
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('profileInfo').style.display = 'block';
+        document.getElementById('profileUsername').textContent = username;
+        document.getElementById('userElo').textContent = data.stats.points;
+        document.getElementById('userGames').textContent = data.stats.games_played;
+        document.getElementById('userWins').textContent = data.stats.wins;
+        document.getElementById('userDraws').textContent = data.stats.draws;
+        document.getElementById('userLosses').textContent = data.stats.losses;
+        document.getElementById('userGoals').textContent = data.stats.goals;
+        document.getElementById('userAssists').textContent = data.stats.assists;
+        document.getElementById('userCleansheets').textContent = data.stats.clean_sheets;
+
+        // Reset pending changes and store original VIP settings
+        pendingChanges = { color: null, message: null, celebration: null };
+        originalVipSettings = {
+            color: data.vip_color || '#FFD700',
+            message: data.vipMessage || '',
+            celebration: data.vipCelebration || 'none'
+        };
+        console.log('Original VIP settings:', originalVipSettings);
+        updateSaveButtonState();
+
+        // VIP stuff
+        if (data.isVIP) {
+            document.getElementById('userVIP').textContent = 'Active';
+            document.getElementById('vipColorRow').style.display = 'flex';
+            document.getElementById('vipMessageRow').style.display = 'flex';
+            document.getElementById('vipCelebrationRow').style.display = 'flex';
+
+            document.getElementById('vipColorPicker').value = data.vip_color || '#FFD700';
+            document.getElementById('vipMessageInput').value = data.vipMessage || '';
+            document.getElementById('vipCelebrationSelect').value = data.vipCelebration || 'none';
+        } else {
+            document.getElementById('userVIP').textContent = 'Not VIP';
+            document.getElementById('buyVipButton').style.display = 'inline-block';
+        }
+
+        errorMessage.textContent = '';
+    } catch (error) {
+        console.error('Login error:', error);
+        errorMessage.textContent = 'Error connecting to server.';
+    }
+}
+
+    function addProfileHoverEffects() {
+        const profileInfo = document.getElementById('profileInfo');
+        const paragraphs = profileInfo.querySelectorAll('p');
+        paragraphs.forEach(p => {
+            p.onmouseover = () => {
+                p.style.background = 'rgba(255, 255, 255, 0.15)';
+                p.style.transform = 'translateX(8px)';
+                p.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.2)';
+            };
+            p.onmouseout = () => {
+                p.style.background = 'rgba(255, 255, 255, 0.1)';
+                p.style.transform = 'translateX(0)';
+                p.style.boxShadow = 'none';
+            };
+        });
+    }
+
+    async function handleBmcPurchase() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const authId = urlParams.get('custom');
+    console.log('handleBmcPurchase triggered. authId:', authId, 'currentUserAuth:', currentUserAuth);
+
+    if (!currentUserAuth) currentUserAuth = localStorage.getItem('currentUserAuth');
+
+    if (authId && authId === currentUserAuth) {
+        try {
+            const res = await fetch('http://localhost:3000/api/bmc-purchase', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ auth: userId })
+            });
+
+            const result = await res.json();
+
+            if (!res.ok || !result.success) {
+                console.error('BMC backend error:', result.error);
+                throw new Error('Backend VIP update failed');
+            }
+
+            console.log('VIP status updated successfully');
+            await updateVipUI();
+            document.getElementById('errorMessage').innerText = 'VIP status activated for 30 days!';
+            setTimeout(() => document.getElementById('errorMessage').innerText = '', 3000);
+            window.history.replaceState({}, document.title, window.location.pathname);
+        } catch (err) {
+            console.error('Error confirming purchase:', err);
+            document.getElementById('errorMessage').innerText = 'Error confirming payment. Contact support.';
+        }
+    } else {
+        console.log('No matching authId or user not logged in');
+    }
+}
+
+async function buyVip() {
+    alert("VIP can not be purchased through the website yet. Please contact on Discord!");
+}
+
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    const debouncedUpdateVipColor = debounce(updateVipColor, 500);
+    const debouncedUpdateVipMessage = debounce(updateVipMessage, 500);
+    const debouncedUpdateVipCelebration = debounce(updateVipCelebration, 500);
+
+    async function updateVipColor(color) {
+    if (!currentUserAuth) {
+        document.getElementById('errorMessage').innerText = 'User not logged in.';
+        return;
+    }
+
+    const vipColorPicker = document.getElementById('vipColorPicker');
+    vipColorPicker.dataset.updating = 'true';
+
+    try {
+        const res = await fetch('http://localhost:3000/api/update-vip-color', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ auth: currentUserAuth, color })
+        });
+
+        const result = await res.json();
+
+        if (!res.ok) {
+            throw new Error(result.error || 'Unknown error');
+        }
+
+        document.getElementById('errorMessage').innerText = 'VIP color updated successfully!';
+        setTimeout(() => document.getElementById('errorMessage').innerText = '', 2000);
+    } catch (err) {
+        console.error('Error updating VIP color:', err);
+        document.getElementById('errorMessage').innerText = 'Failed to update VIP color.';
+        const { vipColor } = await checkAndUpdateVipStatus();
+        vipColorPicker.value = vipColor || '#ffffff';
+    } finally {
+        delete vipColorPicker.dataset.updating;
+    }
+}
+
+async function updateVipMessage(message) {
+    if (!currentUserAuth) {
+        document.getElementById('errorMessage').innerText = 'User not logged in.';
+        return;
+    }
+
+    const vipMessageInput = document.getElementById('vipMessageInput');
+    vipMessageInput.dataset.updating = 'true';
+
+    try {
+        const response = await fetch('/api/updateVipMessage', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ auth: currentUserAuth, vipMessage: message }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to update VIP message.');
+        }
+
+        document.getElementById('errorMessage').innerText = 'VIP message updated successfully!';
+        setTimeout(() => document.getElementById('errorMessage').innerText = '', 2000);
+    } catch (err) {
+        console.error('Error updating VIP message:', err);
+        document.getElementById('errorMessage').innerText = 'Failed to update VIP message.';
+        const { vipMessage } = await checkAndUpdateVipStatus();
+        vipMessageInput.value = vipMessage || '';
+    } finally {
+        delete vipMessageInput.dataset.updating;
+    }
+}
+
+async function updateVipCelebration(value) {
+    if (!currentUserAuth) {
+        document.getElementById('errorMessage').innerText = 'User not logged in.';
+        return;
+    }
+
+    const vipCelebrationSelect = document.getElementById('vipCelebrationSelect');
+    vipCelebrationSelect.dataset.updating = 'true';
+
+    try {
+        const celebrationValue = value === 'none' ? null : value.toLowerCase();
+        const response = await fetch('/api/updateVipCelebration', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ auth: currentUserAuth, vipCelebration: celebrationValue }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to update VIP celebration.');
+        }
+
+        document.getElementById('errorMessage').innerText = 'VIP celebration updated successfully!';
+        setTimeout(() => document.getElementById('errorMessage').innerText = '', 2000);
+    } catch (err) {
+        console.error('Error updating VIP celebration:', err);
+        document.getElementById('errorMessage').innerText = 'Failed to update VIP celebration.';
+        const { vipCelebration } = await checkAndUpdateVipStatus();
+        vipCelebrationSelect.value = vipCelebration || 'none';
+    } finally {
+        delete vipCelebrationSelect.dataset.updating;
+    }
+}
+
+async function loadRankings(page = 1, limit = 250) {
+    const rankingBody = document.getElementById('rankingBody');
+    const userRankCell = document.getElementById('userRankCell');
+    const userNameCell = document.getElementById('userNameCell');
+    const userEloCell = document.getElementById('userEloCell');
+    const prevPageButton = document.getElementById('prevPage');
+    const nextPageButton = document.getElementById('nextPage');
+    const pageNumbersContainer = document.getElementById('pageNumbers');
+
+    try {
+        const authQuery = currentUserAuth ? `&auth=${currentUserAuth}` : '';
+        const response = await fetch(`/api/getRankings?page=${page}&limit=${limit}${authQuery}`);
+        const data = await response.json();
+
+        if (!response.ok || !data) {
+            rankingBody.innerHTML = '<tr><td colspan="3">Error loading rankings.</td></tr>';
+            console.error('Error fetching rankings:', data.error);
+            return;
+        }
+
+        console.log('Rankings API response:', {
+            statsDataLength: data.statsData?.length,
+            totalItems: data.pagination?.totalItems,
+            totalPages: data.pagination?.totalPages,
+            perPage: data.pagination?.perPage,
+            currentPage: data.pagination?.currentPage,
+            limitSent: limit
+        });
+
+        const totalItems = data.pagination?.totalItems || data.statsData.length || 0;
+        const totalPages = data.pagination?.totalPages || Math.ceil(totalItems / limit);
+        const perPage = data.pagination?.perPage || limit;
+        const startIndex = (page - 1) * perPage;
+
+        // Validate page number
+        if (page < 1 || (totalPages > 0 && page > totalPages)) {
+            rankingBody.innerHTML = '<tr><td colspan="3">Invalid page.</td></tr>';
+            console.warn(`Invalid page: ${page}. Total pages: ${totalPages}`);
+            return;
+        }
+
+        // Populate rankings table
+        rankingBody.innerHTML = '';
+        if (data.statsData?.length === 0) {
+            rankingBody.innerHTML = '<tr><td colspan="3">No rankings available.</td></tr>';
+        } else {
+            data.statsData.forEach((stat, index) => {
+                const username = data.userData[stat.auth]?.nicknames[0] || 'Unknown';
+                const row = document.createElement('tr');
+                let rankCellContent = stat.rank; // Use the rank from the database
+
+                // Assign medals based on rank
+                if (rankCellContent === 1) {
+                    row.classList.add('medal-gold');
+                } else if (rankCellContent === 2) {
+                    row.classList.add('medal-silver');
+                } else if (rankCellContent === 3) {
+                    row.classList.add('medal-bronze');
+                }
+
+                row.innerHTML = `
+                    <td>${rankCellContent}</td>
+                    <td>${username}</td>
+                    <td>${stat.points ?? 0}</td>
+                `;
+                row.dataset.auth = stat.auth;
+                row.addEventListener('click', () => showPlayerProfile(stat.auth, username));
+                rankingBody.appendChild(row);
+            });
+        }
+
+        // Update user's position in the footer
+        if (currentUserAuth) {
+            const userStat = data.userStats[currentUserAuth];
+            const username = data.userData[currentUserAuth]?.nicknames[0] || 'Unknown';
+            const userPoints = userStat?.points ?? 0;
+            const userRank = data.countRank || 'Unranked';
+
+            userRankCell.innerText = userRank;
+            userNameCell.innerText = `You`;
+            userEloCell.innerText = userPoints;
+        } else {
+            userRankCell.innerText = 'N/A';
+            userNameCell.innerText = 'Not logged in (Login to see)';
+            userEloCell.innerText = 'N/A';
+        }
+
+        // Update pagination controls
+        prevPageButton.disabled = page === 1;
+        nextPageButton.disabled = totalPages === 0 || page >= totalPages;
+
+        const prevPageClone = prevPageButton.cloneNode(true);
+        const nextPageClone = nextPageButton.cloneNode(true);
+        prevPageButton.replaceWith(prevPageClone);
+        nextPageButton.replaceWith(nextPageClone);
+
+        pageNumbersContainer.innerHTML = '';
+        if (totalPages > 0) {
+            const maxPagesToShow = 5;
+            let startPage = Math.max(1, page - Math.floor(maxPagesToShow / 2));
+            let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+            startPage = Math.max(1, endPage - maxPagesToShow + 1);
+
+            for (let i = startPage; i <= endPage; i++) {
+                const pageNumber = document.createElement('span');
+                pageNumber.className = `page-number ${i === page ? 'active' : ''}`;
+                pageNumber.innerText = i;
+                pageNumber.setAttribute('aria-current', i === page ? 'page' : null);
+                pageNumber.addEventListener('click', () => loadRankings(i, limit));
+                pageNumbersContainer.appendChild(pageNumber);
+            }
+
+            prevPageClone.onclick = () => {
+                if (page > 1) loadRankings(page - 1, limit);
+            };
+            nextPageClone.onclick = () => {
+                if (page < totalPages) loadRankings(page + 1, limit);
+            };
+        } else {
+            prevPageClone.disabled = true;
+            nextPageClone.disabled = true;
+        }
+
+        console.log(`Pagination: Page ${page} of ${totalPages}, showing ${startIndex + 1} to ${Math.min(startIndex + perPage, totalItems)} of ${totalItems} users`);
+
+    } catch (err) {
+        rankingBody.innerHTML = '<tr><td colspan="3">Error loading rankings.</td></tr>';
+        console.error('Error in loadRankings:', err);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    const authData = localStorage.getItem('authData');
+    if (authData) {
+        const { auth, username, expiry } = JSON.parse(authData);
+        if (Date.now() >= expiry) {
+            localStorage.removeItem('authData');
+            localStorage.removeItem('userId');
+            return;
+        }
+
+        try {
+            const res = await fetch('http://localhost:3000/api/login/verify', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${auth}`
+                }
+            });
+            const data = await res.json();
+            if (res.ok) {
+                // Auto-login successful, set UI
+                currentUserAuth = auth;
+                localStorage.setItem('userId', auth);
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('profileInfo').style.display = 'block';
+                document.getElementById('profileUsername').textContent = username;
+                document.getElementById('userElo').textContent = data.stats.points;
+                document.getElementById('userGames').textContent = data.stats.games_played;
+                document.getElementById('userWins').textContent = data.stats.wins;
+                document.getElementById('userDraws').textContent = data.stats.draws;
+                document.getElementById('userLosses').textContent = data.stats.losses;
+                document.getElementById('userGoals').textContent = data.stats.goals;
+                document.getElementById('userAssists').textContent = data.stats.assists;
+                document.getElementById('userCleansheets').textContent = data.stats.clean_sheets;
+
+                // VIP settings
+                pendingChanges = { color: null, message: null, celebration: null };
+                originalVipSettings = {
+                    color: data.vip_color || '#FFD700',
+                    message: data.vipMessage || '',
+                    celebration: data.vipCelebration || 'none'
+                };
+                updateSaveButtonState();
+                if (data.isVIP) {
+                    document.getElementById('userVIP').textContent = 'Active';
+                    document.getElementById('vipColorRow').style.display = 'flex';
+                    document.getElementById('vipMessageRow').style.display = 'flex';
+                    document.getElementById('vipCelebrationRow').style.display = 'flex';
+                    document.getElementById('vipColorPicker').value = data.vip_color || '#FFD700';
+                    document.getElementById('vipMessageInput').value = data.vipMessage || '';
+                    document.getElementById('vipCelebrationSelect').value = data.vipCelebration || 'none';
+                } else {
+                    document.getElementById('userVIP').textContent = 'Not VIP';
+                    document.getElementById('buyVipButton').style.display = 'inline-block';
+                }
+            } else {
+                localStorage.removeItem('authData');
+                localStorage.removeItem('userId');
+            }
+        } catch (error) {
+            console.error('Auto-login error:', error);
+            localStorage.removeItem('authData');
+            localStorage.removeItem('userId');
+        }
+    }
+});
+
+function renderProfile(data, username, container) {
+    container.innerHTML = `
+        <h3 style="text-align: center; font-size: 28px;">${username}</h3>
+        <div>
+            <p><strong>⭐ Elo:</strong> <span>${data.points}</span></p>
+            <p><strong>⏱️ Games:</strong> <span>${data.games_played}</span></p>
+            <p><strong>😃 Wins:</strong> <span>${data.wins}</span></p>
+            <p><strong>😐 Draws:</strong> <span>${data.draws}</span></p>
+            <p><strong>😒 Losses:</strong> <span>${data.losses}</span></p>
+            <p><strong>⚽ Goals:</strong> <span>${data.goals}</span></p>
+            <p><strong>🅰️ Assists:</strong> <span>${data.assists}</span></p>
+            <p><strong>🥅 Clean Sheets:</strong> <span>${data.clean_sheets}</span></p>
+        </div>
+    `;
+}
+
+    async function showPlayerProfile(authId, username) {
+    try {
+        const response = await fetch(`/api/getPlayerProfile?auth=${authId}`);
+        const data = await response.json();
+        if (!response.ok) {
+            console.error('Error fetching player profile:', data.error);
+            return;
+        }
+
+        // Create backdrop for blur effect
+        const backdrop = document.createElement('div');
+        backdrop.className = 'modal-backdrop';
+        backdrop.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5); /* Semi-transparent black overlay */
+            backdrop-filter: blur(5px); /* Apply blur effect */
+            -webkit-backdrop-filter: blur(5px); /* Safari support */
+            z-index: 999; /* Below modal (z-index: 1000) */
+            opacity: 0; /* Start invisible */
+            transition: opacity 0.3s ease; /* Match modal transition */
+        `;
+
+        // Create modal
+        const modal = document.createElement('div');
+        modal.className = 'profile-info modal';
+        renderProfile(data.profile, username, modal);
+
+        // Close button
+        const closeButton = document.createElement('button');
+        closeButton.innerText = '×';
+        closeButton.style.cssText = `
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 28px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        `;
+        closeButton.onmouseover = () => (closeButton.style.transform = 'scale(1.2)');
+        closeButton.onmouseout = () => (closeButton.style.transform = 'scale(1)');
+        closeButton.onclick = () => {
+            // Add zoom-out effect and fade out backdrop
+            modal.style.transform = 'translate(-50%, -50%) scale(0)';
+            modal.style.opacity = '0';
+            backdrop.style.opacity = '0';
+            setTimeout(() => {
+                document.body.removeChild(modal);
+                document.body.removeChild(backdrop); // Remove backdrop
+            }, 300); // Match transition duration
+        };
+        modal.appendChild(closeButton);
+
+        const menuWidth = 240; // Adjust to match your menu’s width in pixels
+        modal.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: calc(50% + ${menuWidth / 2}px);
+            transform: translate(-50%, -50%) scale(0); /* Start scaled down */
+            opacity: 0; /* Start invisible */
+            background: linear-gradient(135deg, #1E40AF, #3B82F6);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            z-index: 1000; /* Above backdrop */
+            max-width: 450px;
+            width: 90%;
+            color: #fff;
+            transition: transform 0.3s ease, opacity 0.3s ease; /* Animate scale and opacity */
+            overflow: hidden;
+            box-sizing: border-box;
+        `;
+
+        // Add backdrop and modal to DOM
+        document.body.appendChild(backdrop);
+        document.body.appendChild(modal);
+
+        // Trigger zoom-in effect and fade in backdrop after a slight delay
+        setTimeout(() => {
+            modal.style.transform = 'translate(-50%, -50%) scale(1)';
+            modal.style.opacity = '1';
+            backdrop.style.opacity = '1'; // Fade in backdrop
+        }, 10); // Small delay ensures transition is applied
+
+    } catch (err) {
+        console.error('Error showing player profile:', err);
+    }
+}
+</script>
+</body>
+</html>
