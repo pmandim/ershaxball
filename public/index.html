@@ -1196,7 +1196,6 @@ nav a.discord-link:hover {
         </svg>
     </button>
     <a href="#" onclick="showPage('profile')">PROFILE</a>
-    <a href="#" onclick="showPage('rooms')">ROOMS</a>
     <a href="#" onclick="showPage('home')">RANKING</a>
     <a href="https://discord.com/invite/UVqMEne4MQ" target="_blank" class="discord-link" style="margin-top: auto;">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 127.14 96.36" class="discord-icon">
@@ -1279,6 +1278,11 @@ nav a.discord-link:hover {
 </section>
 
 <script>
+    let cachedRankingsPages = {}; // Object to store rankings data by page (e.g., { 1: data, 2: data, ... })
+    let lastRankingsFetchTime = 0; // Timestamp of last fetch
+    const rankingsCacheDuration = 30 * 1000; // 30 seconds
+    let currentRankingsPage = 1; // Current page being viewed
+    const rankingsPerPage = 250; // Matches server-side limit
     let pendingChanges = {
         color: null,
         message: null,
@@ -1289,21 +1293,136 @@ nav a.discord-link:hover {
     let currentUserAuth = localStorage.getItem('currentUserAuth') || null; // Load from localStorage
     let vipCheckInterval = null;
 
-    function showPage(pageId) {
+    async function preCacheAllRankings() {
+    const now = Date.now();
+    
+    // Skip if cache is fresh
+    if (Object.keys(cachedRankingsPages).length > 0 && now - lastRankingsFetchTime < rankingsCacheDuration) {
+        console.log('Using existing cache for rankings');
+        return;
+    }
+
+    try {
+        // Fetch first page to get totalPages
+        const authQuery = currentUserAuth ? `&auth=${currentUserAuth}` : '';
+        const firstPageResponse = await fetch(`/api/getRankings?page=1&limit=${rankingsPerPage}${authQuery}`);
+        const firstPageData = await firstPageResponse.json();
+
+        if (!firstPageResponse.ok || !firstPageData || !firstPageData.statsData) {
+            throw new Error(firstPageData?.error || 'Error fetching first page of rankings');
+        }
+
+        // Store first page
+        cachedRankingsPages[1] = firstPageData;
+        lastRankingsFetchTime = now;
+
+        const totalPages = firstPageData.pagination?.totalPages || 1;
+        console.log(`Pre-caching ${totalPages} pages of rankings`);
+
+        // Fetch remaining pages in parallel
+        const pagePromises = [];
+        for (let page = 2; page <= totalPages; page++) {
+            pagePromises.push(
+                fetch(`/api/getRankings?page=${page}&limit=${rankingsPerPage}${authQuery}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!response.ok || !data || !data.statsData) {
+                            throw new Error(data?.error || `Error fetching page ${page}`);
+                        }
+                        return { page, data };
+                    })
+            );
+        }
+
+        // Wait for all pages to load
+        const results = await Promise.allSettled(pagePromises);
+        
+        results.forEach(result => {
+            if (result.status === 'fulfilled') {
+                const { page, data } = result.value;
+                cachedRankingsPages[page] = data;
+            } else {
+                console.error(`Failed to cache page ${result.reason}`);
+            }
+        });
+
+        console.log(`Cached ${Object.keys(cachedRankingsPages).length} pages of rankings`);
+        
+        // Render the first page immediately
+        renderRankings(cachedRankingsPages[1], 1);
+    } catch (err) {
+        console.error('Error pre-caching rankings:', err);
+        // Fallback to rendering an error state
+        const rankingBody = document.getElementById('rankingBody');
+        rankingBody.innerHTML = `
+            <tr>
+                <td colspan="3" style="text-align: center; padding: 20px; color: #ff6b6b;">
+                    Error loading rankings. 
+                    <button onclick="preCacheAllRankings()" 
+                            style="background: none; border: none; color: #4dabf7; text-decoration: underline; cursor: pointer;">
+                        Try again
+                    </button>
+                </td>
+            </tr>
+        `;
+    }
+}
+
+    // Update your showPage function to this:
+function showPage(pageId) {
+    // Hide all sections first
     document.querySelectorAll('section').forEach(section => {
         section.classList.remove('active');
     });
-    document.getElementById(pageId).classList.add('active');
 
-    // Load data specific to the page
-    if (pageId === 'home') {
-        loadRankings(); // Your existing function
-    } else if (pageId === 'rooms') {
-        loadRooms();
-    } else if (pageId === 'career') {
-        selectNation('argentina'); // Your existing function
+    // Show the selected section with animation
+    const activeSection = document.getElementById(pageId);
+    activeSection.classList.add('active');
+    activeSection.style.opacity = '0';
+    activeSection.style.transform = 'translateY(20px)';
+    
+    setTimeout(() => {
+        activeSection.style.opacity = '1';
+        activeSection.style.transform = 'translateY(0)';
+        activeSection.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+    }, 10);
+
+    // Load appropriate data for each page
+    switch(pageId) {
+        case 'home':
+            if (cachedRankings) {
+                renderRankings(cachedRankings, currentRankingsPage);
+            } else {
+                loadRankings(currentRankingsPage, rankingsPerPage);
+            }
+            break;
+            
+        case 'profile':
+            // Only show login form if not logged in
+            if (!currentUserAuth) {
+                document.getElementById('loginForm').style.display = 'block';
+                document.getElementById('profileInfo').style.display = 'none';
+            } else {
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('profileInfo').style.display = 'block';
+                updateProfileInfo(currentUserAuth);
+            }
+            break;
+            
+        case 'rooms':
+            // Initialize rooms if this function exists
+            if (typeof loadRooms === 'function') {
+                loadRooms();
+            }
+            break;
+            
+        case 'career':
+            // Initialize career if this function exists
+            if (typeof selectNation === 'function') {
+                selectNation('argentina');
+            }
+            break;
     }
-    // If you have profile-specific logic, add it here (e.g., updateVipUI())
 }
 
 function markPendingChange(type, value) {
@@ -1523,46 +1642,6 @@ async function updateProfileInfo(userId) {
     } catch (error) {
         console.error('Error fetching profile:', error);
         showError('Failed to load profile');
-    }
-}
-
-async function loadRooms() {
-    try {
-        const res = await fetch('/api/room-link');
-        const { room_link, total_players, red_players = [], blue_players = [], spec_players = [], blue_score, red_score } = await res.json();
-
-        const roomsContainer = document.getElementById('roomsContainer');
-        roomsContainer.innerHTML = '';
-
-        const roomCard = document.createElement('div');
-        roomCard.className = 'room-card';
-        roomCard.innerHTML = `
-            <h3>🌍ERS | Real Soccer</h3>
-            <h3>Score: <span>${red_score}-${blue_score}</span></h3>
-            <p>Total Players: <span>${total_players}/20</span></p>
-            <div class="players-container">
-                <div class="players-column red-team">
-                    <h4>Red Team</h4>
-                    <ul>${red_players.map(player => `<li>${player}</li>`).join('')}</ul>
-                </div>
-                <div class="players-column spec-team">
-                    <h4>Spectators</h4>
-                    <ul>${spec_players.map(player => `<li>${player}</li>`).join('')}</ul>
-                </div>
-                <div class="players-column blue-team">
-                    <h4>Blue Team</h4>
-                    <ul>${blue_players.map(player => `<li>${player}</li>`).join('')}</ul>
-                </div>
-            </div>
-        `;
-        
-        roomCard.onclick = () => window.open(room_link, '_blank');
-        roomsContainer.appendChild(roomCard);
-
-    } catch (err) {
-        const roomsContainer = document.getElementById('roomsContainer');
-        roomsContainer.innerHTML = '<p class="error-message">Error loading rooms. Please try again.</p>';
-        console.error('Error in loadRooms:', err);
     }
 }
 
@@ -2121,6 +2200,58 @@ async function updateVipCelebration(value) {
 }
 
 async function loadRankings(page = 1, limit = 250) {
+    const now = Date.now();
+    const rankingBody = document.getElementById('rankingBody');
+    
+    // Show loading state
+    rankingBody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 20px;">Loading rankings...</td></tr>`;
+
+    try {
+        // Check if we have cached data for this page and if cache is fresh
+        if (cachedRankingsPages[page] && now - lastRankingsFetchTime < rankingsCacheDuration) {
+            console.log(`Using cached rankings for page ${page}`);
+            currentRankingsPage = page;
+            renderRankings(cachedRankingsPages[page], page);
+        } else {
+            // Fetch data for the specific page
+            currentRankingsPage = page;
+            const authQuery = currentUserAuth ? `&auth=${currentUserAuth}` : '';
+            const response = await fetch(`/api/getRankings?page=${page}&limit=${limit}${authQuery}`);
+            const data = await response.json();
+
+            if (!response.ok || !data || !data.statsData) {
+                throw new Error(data?.error || 'Error loading rankings');
+            }
+
+            console.log('API Response for page', page, {
+                statsDataLength: data.statsData.length,
+                totalItems: data.pagination.totalItems,
+                totalPages: data.pagination.totalPages
+            });
+
+            // Update cache for this page
+            cachedRankingsPages[page] = data;
+            lastRankingsFetchTime = now;
+            
+            renderRankings(data, page);
+        }
+    } catch (err) {
+        console.error('Error loading rankings:', err);
+        rankingBody.innerHTML = `
+            <tr>
+                <td colspan="3" style="text-align: center; padding: 20px; color: #ff6b6b;">
+                    Error loading rankings. 
+                    <button onclick="loadRankings(${page}, ${rankingsPerPage})" 
+                            style="background: none; border: none; color: #4dabf7; text-decoration: underline; cursor: pointer;">
+                        Try again
+                    </button>
+                </td>
+            </tr>
+        `;
+    }
+}
+
+function renderRankings(data, currentPage) {
     const rankingBody = document.getElementById('rankingBody');
     const userRankCell = document.getElementById('userRankCell');
     const userNameCell = document.getElementById('userNameCell');
@@ -2129,130 +2260,115 @@ async function loadRankings(page = 1, limit = 250) {
     const nextPageButton = document.getElementById('nextPage');
     const pageNumbersContainer = document.getElementById('pageNumbers');
 
-    try {
-        const authQuery = currentUserAuth ? `&auth=${currentUserAuth}` : '';
-        const response = await fetch(`/api/getRankings?page=${page}&limit=${limit}${authQuery}`);
-        const data = await response.json();
-
-        if (!response.ok || !data) {
-            rankingBody.innerHTML = '<tr><td colspan="3">Error loading rankings.</td></tr>';
-            console.error('Error fetching rankings:', data.error);
-            return;
-        }
-
-        console.log('Rankings API response:', {
-            statsDataLength: data.statsData?.length,
-            totalItems: data.pagination?.totalItems,
-            totalPages: data.pagination?.totalPages,
-            perPage: data.pagination?.perPage,
-            currentPage: data.pagination?.currentPage,
-            limitSent: limit
+    // Clear existing content
+    rankingBody.innerHTML = '';
+    
+    // Create document fragment for efficient DOM updates
+    const fragment = document.createDocumentFragment();
+    
+    if (!data?.statsData || data.statsData.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = '<td colspan="3" style="text-align: center; padding: 20px;">No rankings available yet</td>';
+        fragment.appendChild(row);
+    } else {
+        data.statsData.forEach((stat, index) => {
+            const username = data.userData[stat.auth]?.nicknames?.[0] || 'Unknown';
+            const row = document.createElement('tr');
+            
+            // Add medal classes for top 3 positions
+            if (stat.rank === 1) row.classList.add('medal-gold');
+            else if (stat.rank === 2) row.classList.add('medal-silver');
+            else if (stat.rank === 3) row.classList.add('medal-bronze');
+            
+            row.innerHTML = `
+                <td>${stat.rank}</td>
+                <td>${username}</td>
+                <td>${stat.points ?? 0}</td>
+            `;
+            row.dataset.auth = stat.auth;
+            row.addEventListener('click', () => showPlayerProfile(stat.auth, username));
+            fragment.appendChild(row);
         });
-
-        const totalItems = data.pagination?.totalItems || data.statsData.length || 0;
-        const totalPages = data.pagination?.totalPages || Math.ceil(totalItems / limit);
-        const perPage = data.pagination?.perPage || limit;
-        const startIndex = (page - 1) * perPage;
-
-        // Validate page number
-        if (page < 1 || (totalPages > 0 && page > totalPages)) {
-            rankingBody.innerHTML = '<tr><td colspan="3">Invalid page.</td></tr>';
-            console.warn(`Invalid page: ${page}. Total pages: ${totalPages}`);
-            return;
-        }
-
-        // Populate rankings table
-        rankingBody.innerHTML = '';
-        if (data.statsData?.length === 0) {
-            rankingBody.innerHTML = '<tr><td colspan="3">No rankings available.</td></tr>';
-        } else {
-            data.statsData.forEach((stat, index) => {
-                const username = data.userData[stat.auth]?.nicknames[0] || 'Unknown';
-                const row = document.createElement('tr');
-                let rankCellContent = stat.rank; // Use the rank from the database
-
-                // Assign medals based on rank
-                if (rankCellContent === 1) {
-                    row.classList.add('medal-gold');
-                } else if (rankCellContent === 2) {
-                    row.classList.add('medal-silver');
-                } else if (rankCellContent === 3) {
-                    row.classList.add('medal-bronze');
-                }
-
-                row.innerHTML = `
-                    <td>${rankCellContent}</td>
-                    <td>${username}</td>
-                    <td>${stat.points ?? 0}</td>
-                `;
-                row.dataset.auth = stat.auth;
-                row.addEventListener('click', () => showPlayerProfile(stat.auth, username));
-                rankingBody.appendChild(row);
-            });
-        }
-
-        // Update user's position in the footer
-        if (currentUserAuth) {
-            const userStat = data.userStats[currentUserAuth];
-            const username = data.userData[currentUserAuth]?.nicknames[0] || 'Unknown';
-            const userPoints = userStat?.points ?? 0;
-            const userRank = data.countRank || 'Unranked';
-
-            userRankCell.innerText = userRank;
-            userNameCell.innerText = `You`;
-            userEloCell.innerText = userPoints;
-        } else {
-            userRankCell.innerText = 'N/A';
-            userNameCell.innerText = 'Not logged in (Login to see)';
-            userEloCell.innerText = 'N/A';
-        }
-
-        // Update pagination controls
-        prevPageButton.disabled = page === 1;
-        nextPageButton.disabled = totalPages === 0 || page >= totalPages;
-
-        const prevPageClone = prevPageButton.cloneNode(true);
-        const nextPageClone = nextPageButton.cloneNode(true);
-        prevPageButton.replaceWith(prevPageClone);
-        nextPageButton.replaceWith(nextPageClone);
-
-        pageNumbersContainer.innerHTML = '';
-        if (totalPages > 0) {
-            const maxPagesToShow = 5;
-            let startPage = Math.max(1, page - Math.floor(maxPagesToShow / 2));
-            let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
-            startPage = Math.max(1, endPage - maxPagesToShow + 1);
-
-            for (let i = startPage; i <= endPage; i++) {
-                const pageNumber = document.createElement('span');
-                pageNumber.className = `page-number ${i === page ? 'active' : ''}`;
-                pageNumber.innerText = i;
-                pageNumber.setAttribute('aria-current', i === page ? 'page' : null);
-                pageNumber.addEventListener('click', () => loadRankings(i, limit));
-                pageNumbersContainer.appendChild(pageNumber);
-            }
-
-            prevPageClone.onclick = () => {
-                if (page > 1) loadRankings(page - 1, limit);
-            };
-            nextPageClone.onclick = () => {
-                if (page < totalPages) loadRankings(page + 1, limit);
-            };
-        } else {
-            prevPageClone.disabled = true;
-            nextPageClone.disabled = true;
-        }
-
-        console.log(`Pagination: Page ${page} of ${totalPages}, showing ${startIndex + 1} to ${Math.min(startIndex + perPage, totalItems)} of ${totalItems} users`);
-
-    } catch (err) {
-        rankingBody.innerHTML = '<tr><td colspan="3">Error loading rankings.</td></tr>';
-        console.error('Error in loadRankings:', err);
     }
+    
+    rankingBody.appendChild(fragment);
+
+    // Update user's position in footer
+    if (currentUserAuth && data.userStats?.[currentUserAuth]) {
+        const userStat = data.userStats[currentUserAuth];
+        const username = data.userData[currentUserAuth]?.nicknames?.[0] || 'Unknown';
+        userRankCell.textContent = data.countRank || 'Unranked';
+        userNameCell.textContent = 'You';
+        userEloCell.textContent = userStat.points ?? 0;
+    } else {
+        userRankCell.textContent = 'N/A';
+        userNameCell.textContent = 'Not logged in (Login to see)';
+        userEloCell.textContent = 'N/A';
+    }
+
+    // Update pagination controls
+    const totalItems = data.pagination?.totalItems || 0;
+    const totalPages = data.pagination?.totalPages || 1;
+    
+    prevPageButton.disabled = currentPage === 1;
+    nextPageButton.disabled = totalPages <= 1 || currentPage >= totalPages;
+
+    // Clone buttons to remove old event listeners
+    const prevClone = prevPageButton.cloneNode(true);
+    const nextClone = nextPageButton.cloneNode(true);
+    prevPageButton.replaceWith(prevClone);
+    nextPageButton.replaceWith(nextClone);
+
+    // Update page numbers
+    pageNumbersContainer.innerHTML = '';
+    if (totalPages > 0) {
+        const maxPagesToShow = 5;
+        let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+        let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+        
+        if (endPage - startPage + 1 < maxPagesToShow) {
+            if (currentPage < totalPages / 2) {
+                endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+            } else {
+                startPage = Math.max(1, endPage - maxPagesToShow + 1);
+            }
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            const pageNumber = document.createElement('span');
+            pageNumber.className = `page-number ${i === currentPage ? 'active' : ''}`;
+            pageNumber.textContent = i;
+            pageNumber.onclick = () => {
+                console.log('Page number clicked:', i);
+                currentRankingsPage = i;
+                loadRankings(i, rankingsPerPage);
+            };
+            pageNumbersContainer.appendChild(pageNumber);
+        }
+    }
+
+    // Add event listeners to pagination buttons
+    prevClone.onclick = () => {
+        console.log('Previous button clicked, currentPage:', currentPage);
+        if (currentPage > 1) {
+            currentRankingsPage = currentPage - 1;
+            loadRankings(currentRankingsPage, rankingsPerPage);
+        }
+    };
+
+    nextClone.onclick = () => {
+        console.log('Next button clicked, currentPage:', currentPage);
+        if (currentPage < totalPages) {
+            currentRankingsPage = currentPage + 1;
+            loadRankings(currentRankingsPage, rankingsPerPage);
+        }
+    };
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // Existing auth check code
     const authData = localStorage.getItem('authData');
+    preCacheAllRankings();
     if (authData) {
         const { auth, username, expiry } = JSON.parse(authData);
         if (Date.now() >= expiry) {
@@ -2271,7 +2387,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
             const data = await res.json();
             if (res.ok) {
-                // Auto-login successful, set UI
                 currentUserAuth = auth;
                 localStorage.setItem('userId', auth);
                 document.getElementById('loginForm').style.display = 'none';
@@ -2286,7 +2401,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('userAssists').textContent = data.stats.assists;
                 document.getElementById('userCleansheets').textContent = data.stats.clean_sheets;
 
-                // VIP settings
                 pendingChanges = { color: null, message: null, celebration: null };
                 originalVipSettings = {
                     color: data.vip_color || '#FFD700',
@@ -2316,6 +2430,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             localStorage.removeItem('userId');
         }
     }
+
+    // Pre-load rankings data immediately
+    await loadRankings(currentRankingsPage, rankingsPerPage);
+    
+    // Set up periodic refresh (every 60 seconds)
+    setInterval(() => {
+        if (document.getElementById('home').classList.contains('active')) {
+            loadRankings(currentRankingsPage, rankingsPerPage);
+        }
+    }, 60000);
 });
 
 function renderProfile(data, username, container) {
