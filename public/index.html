@@ -1278,9 +1278,6 @@ nav a.discord-link:hover {
 </section>
 
 <script>
-    let cachedRankingsPages = {}; // Object to store rankings data by page (e.g., { 1: data, 2: data, ... })
-    let lastRankingsFetchTime = 0; // Timestamp of last fetch
-    const rankingsCacheDuration = 30 * 1000; // 30 seconds
     let currentRankingsPage = 1; // Current page being viewed
     const rankingsPerPage = 250; // Matches server-side limit
     let pendingChanges = {
@@ -1289,632 +1286,514 @@ nav a.discord-link:hover {
         celebration: null
     };
     let originalVipSettings = { color: null, message: null, celebration: null };
-
     let currentUserAuth = localStorage.getItem('currentUserAuth') || null; // Load from localStorage
     let vipCheckInterval = null;
 
-    async function preCacheAllRankings() {
-    const now = Date.now();
-    
-    // Skip if cache is fresh
-    if (Object.keys(cachedRankingsPages).length > 0 && now - lastRankingsFetchTime < rankingsCacheDuration) {
-        console.log('Using existing cache for rankings');
-        return;
-    }
-
-    try {
-        // Fetch first page to get totalPages
-        const authQuery = currentUserAuth ? `&auth=${currentUserAuth}` : '';
-        const firstPageResponse = await fetch(`/api/getRankings?page=1&limit=${rankingsPerPage}${authQuery}`);
-        const firstPageData = await firstPageResponse.json();
-
-        if (!firstPageResponse.ok || !firstPageData || !firstPageData.statsData) {
-            throw new Error(firstPageData?.error || 'Error fetching first page of rankings');
-        }
-
-        // Store first page
-        cachedRankingsPages[1] = firstPageData;
-        lastRankingsFetchTime = now;
-
-        const totalPages = firstPageData.pagination?.totalPages || 1;
-        console.log(`Pre-caching ${totalPages} pages of rankings`);
-
-        // Fetch remaining pages in parallel
-        const pagePromises = [];
-        for (let page = 2; page <= totalPages; page++) {
-            pagePromises.push(
-                fetch(`/api/getRankings?page=${page}&limit=${rankingsPerPage}${authQuery}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (!response.ok || !data || !data.statsData) {
-                            throw new Error(data?.error || `Error fetching page ${page}`);
-                        }
-                        return { page, data };
-                    })
-            );
-        }
-
-        // Wait for all pages to load
-        const results = await Promise.allSettled(pagePromises);
-        
-        results.forEach(result => {
-            if (result.status === 'fulfilled') {
-                const { page, data } = result.value;
-                cachedRankingsPages[page] = data;
-            } else {
-                console.error(`Failed to cache page ${result.reason}`);
-            }
+    // Update showPage to remove cache reference
+    function showPage(pageId) {
+        // Hide all sections first
+        document.querySelectorAll('section').forEach(section => {
+            section.classList.remove('active');
         });
 
-        console.log(`Cached ${Object.keys(cachedRankingsPages).length} pages of rankings`);
+        // Show the selected section with animation
+        const activeSection = document.getElementById(pageId);
+        activeSection.classList.add('active');
+        activeSection.style.opacity = '0';
+        activeSection.style.transform = 'translateY(20px)';
         
-        // Render the first page immediately
-        renderRankings(cachedRankingsPages[1], 1);
-    } catch (err) {
-        console.error('Error pre-caching rankings:', err);
-        // Fallback to rendering an error state
-        const rankingBody = document.getElementById('rankingBody');
-        rankingBody.innerHTML = `
-            <tr>
-                <td colspan="3" style="text-align: center; padding: 20px; color: #ff6b6b;">
-                    Error loading rankings. 
-                    <button onclick="preCacheAllRankings()" 
-                            style="background: none; border: none; color: #4dabf7; text-decoration: underline; cursor: pointer;">
-                        Try again
-                    </button>
-                </td>
-            </tr>
-        `;
+        setTimeout(() => {
+            activeSection.style.opacity = '1';
+            activeSection.style.transform = 'translateY(0)';
+            activeSection.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+        }, 10);
+
+        // Load appropriate data for each page
+        switch(pageId) {
+            case 'home':
+                loadRankings(currentRankingsPage, rankingsPerPage);
+                break;
+            case 'profile':
+                // Only show login form if not logged in
+                if (!currentUserAuth) {
+                    document.getElementById('loginForm').style.display = 'block';
+                    document.getElementById('profileInfo').style.display = 'none';
+                } else {
+                    document.getElementById('loginForm').style.display = 'none';
+                    document.getElementById('profileInfo').style.display = 'block';
+                    updateProfileInfo(currentUserAuth);
+                }
+                break;
+            case 'rooms':
+                if (typeof loadRooms === 'function') {
+                    loadRooms();
+                }
+                break;
+            case 'career':
+                if (typeof selectNation === 'function') {
+                    selectNation('argentina');
+                }
+                break;
+        }
     }
-}
 
-    // Update your showPage function to this:
-function showPage(pageId) {
-    // Hide all sections first
-    document.querySelectorAll('section').forEach(section => {
-        section.classList.remove('active');
-    });
+    async function loadRankings(page = 1, limit = 250) {
+        const rankingBody = document.getElementById('rankingBody');
+        
+        // Show loading state
+        rankingBody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 20px;">Loading rankings...</td></tr>`;
 
-    // Show the selected section with animation
-    const activeSection = document.getElementById(pageId);
-    activeSection.classList.add('active');
-    activeSection.style.opacity = '0';
-    activeSection.style.transform = 'translateY(20px)';
-    
-    setTimeout(() => {
-        activeSection.style.opacity = '1';
-        activeSection.style.transform = 'translateY(0)';
-        activeSection.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-    }, 10);
+        try {
+            // Fetch data directly from the server for the specific page
+            currentRankingsPage = page;
+            const authQuery = currentUserAuth ? `&auth=${currentUserAuth}` : '';
+            const response = await fetch(`/api/getRankings?page=${page}&limit=${limit}${authQuery}`);
+            const data = await response.json();
 
-    // Load appropriate data for each page
-    switch(pageId) {
-        case 'home':
-            if (cachedRankings) {
-                renderRankings(cachedRankings, currentRankingsPage);
-            } else {
+            if (!response.ok || !data || !data.statsData) {
+                throw new Error(data?.error || 'Error loading rankings');
+            }
+
+            console.log('API Response for page', page, {
+                statsDataLength: data.statsData.length,
+                totalItems: data.pagination.totalItems,
+                totalPages: data.pagination.totalPages
+            });
+
+            renderRankings(data, page);
+        } catch (err) {
+            console.error('Error loading rankings:', err);
+            rankingBody.innerHTML = `
+                <tr>
+                    <td colspan="3" style="text-align: center; padding: 20px; color: #ff6b6b;">
+                        Error loading rankings. 
+                        <button onclick="loadRankings(${page}, ${rankingsPerPage})" 
+                                style="background: none; border: none; color: #4dabf7; text-decoration: underline; cursor: pointer;">
+                            Try again
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }
+    }
+
+    function renderRankings(data, currentPage) {
+        const rankingBody = document.getElementById('rankingBody');
+        const userRankCell = document.getElementById('userRankCell');
+        const userNameCell = document.getElementById('userNameCell');
+        const userEloCell = document.getElementById('userEloCell');
+        const prevPageButton = document.getElementById('prevPage');
+        const nextPageButton = document.getElementById('nextPage');
+        const pageNumbersContainer = document.getElementById('pageNumbers');
+
+        // Clear existing content
+        rankingBody.innerHTML = '';
+        
+        // Create document fragment for efficient DOM updates
+        const fragment = document.createDocumentFragment();
+        
+        if (!data?.statsData || data.statsData.length === 0) {
+            const row = document.createElement('tr');
+            row.innerHTML = '<td colspan="3" style="text-align: center; padding: 20px;">No rankings available yet</td>';
+            fragment.appendChild(row);
+        } else {
+            data.statsData.forEach((stat, index) => {
+                const username = data.userData[stat.auth]?.nicknames?.[0] || 'Unknown';
+                const row = document.createElement('tr');
+                
+                // Add medal classes for top 3 positions
+                if (stat.rank === 1) row.classList.add('medal-gold');
+                else if (stat.rank === 2) row.classList.add('medal-silver');
+                else if (stat.rank === 3) row.classList.add('medal-bronze');
+                
+                row.innerHTML = `
+                    <td>${stat.rank}</td>
+                    <td>${username}</td>
+                    <td>${stat.points ?? 0}</td>
+                `;
+                row.dataset.auth = stat.auth;
+                row.addEventListener('click', () => showPlayerProfile(stat.auth, username));
+                fragment.appendChild(row);
+            });
+        }
+        
+        rankingBody.appendChild(fragment);
+
+        // Update user's position in footer
+        if (currentUserAuth && data.userStats?.[currentUserAuth]) {
+            const userStat = data.userStats[currentUserAuth];
+            const username = data.userData[currentUserAuth]?.nicknames?.[0] || 'Unknown';
+            userRankCell.textContent = data.countRank || 'Unranked';
+            userNameCell.textContent = 'You';
+            userEloCell.textContent = userStat.points ?? 0;
+        } else {
+            userRankCell.textContent = 'N/A';
+            userNameCell.textContent = 'Not logged in (Login to see)';
+            userEloCell.textContent = 'N/A';
+        }
+
+        // Update pagination controls
+        const totalItems = data.pagination?.totalItems || 0;
+        const totalPages = data.pagination?.totalPages || 1;
+        
+        prevPageButton.disabled = currentPage === 1;
+        nextPageButton.disabled = totalPages <= 1 || currentPage >= totalPages;
+
+        // Clone buttons to remove old event listeners
+        const prevClone = prevPageButton.cloneNode(true);
+        const nextClone = nextPageButton.cloneNode(true);
+        prevPageButton.replaceWith(prevClone);
+        nextPageButton.replaceWith(nextClone);
+
+        // Update page numbers
+        pageNumbersContainer.innerHTML = '';
+        if (totalPages > 0) {
+            const maxPagesToShow = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+            let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+            
+            if (endPage - startPage + 1 < maxPagesToShow) {
+                if (currentPage < totalPages / 2) {
+                    endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+                } else {
+                    startPage = Math.max(1, endPage - maxPagesToShow + 1);
+                }
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                const pageNumber = document.createElement('span');
+                pageNumber.className = `page-number ${i === currentPage ? 'active' : ''}`;
+                pageNumber.textContent = i;
+                pageNumber.onclick = () => {
+                    console.log('Page number clicked:', i);
+                    currentRankingsPage = i;
+                    loadRankings(i, rankingsPerPage);
+                };
+                pageNumbersContainer.appendChild(pageNumber);
+            }
+        }
+
+        // Add event listeners to pagination buttons
+        prevClone.onclick = () => {
+            console.log('Previous button clicked, currentPage:', currentPage);
+            if (currentPage > 1) {
+                currentRankingsPage = currentPage - 1;
                 loadRankings(currentRankingsPage, rankingsPerPage);
             }
-            break;
-            
-        case 'profile':
-            // Only show login form if not logged in
-            if (!currentUserAuth) {
-                document.getElementById('loginForm').style.display = 'block';
-                document.getElementById('profileInfo').style.display = 'none';
-            } else {
-                document.getElementById('loginForm').style.display = 'none';
-                document.getElementById('profileInfo').style.display = 'block';
-                updateProfileInfo(currentUserAuth);
-            }
-            break;
-            
-        case 'rooms':
-            // Initialize rooms if this function exists
-            if (typeof loadRooms === 'function') {
-                loadRooms();
-            }
-            break;
-            
-        case 'career':
-            // Initialize career if this function exists
-            if (typeof selectNation === 'function') {
-                selectNation('argentina');
-            }
-            break;
-    }
-}
-
-function markPendingChange(type, value) {
-    console.log(`Marking change: ${type} = ${value}`);
-    // Compare against original saved values
-    if (type === 'color' && value !== originalVipSettings.color) {
-        pendingChanges.color = value;
-    } else if (type === 'message' && value !== originalVipSettings.message) {
-        pendingChanges.message = value;
-    } else if (type === 'celebration' && value !== originalVipSettings.celebration) {
-        pendingChanges.celebration = value;
-    } else {
-        pendingChanges[type] = null; // Reset if no change
-    }
-
-    console.log('Pending changes:', pendingChanges);
-    updateSaveButtonState();
-}
-
-function updateSaveButtonState() {
-    const saveButton = document.getElementById('saveButton');
-    const hasChanges = Object.values(pendingChanges).some(change => change !== null);
-    console.log('Has changes:', hasChanges, 'Pending changes:', pendingChanges);
-    saveButton.disabled = !hasChanges;
-}
-
-function showError(message, type = 'error') {
-    const errorMessage = document.getElementById('errorMessage');
-    errorMessage.textContent = message;
-    errorMessage.style.color = type === 'success' ? '#34D399' : '#E74C3C';
-    errorMessage.style.display = 'block';
-    setTimeout(() => {
-        errorMessage.style.display = 'none';
-    }, 3000);
-}
-
-async function saveProfileChanges() {
-    console.log('saveProfileChanges called, pending changes:', pendingChanges);
-    const userId = localStorage.getItem('userId');
-    if (!userId) {
-        showError('User not logged in');
-        console.log('No userId found in localStorage');
-        return;
-    }
-
-    const updates = {};
-    if (pendingChanges.color !== null) updates.vip_color = pendingChanges.color;
-    if (pendingChanges.message !== null) updates.vipMessage = pendingChanges.message;
-    if (pendingChanges.celebration !== null) updates.vipCelebration = pendingChanges.celebration;
-
-    if (Object.keys(updates).length === 0) {
-        console.log('No updates to save');
-        return;
-    }
-
-    try {
-        console.log('Sending updates:', updates);
-
-        // Update VIP color
-        if (updates.vip_color) {
-            const response = await fetch('/api/update-vip-color', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ auth: userId, color: updates.vip_color })
-            });
-            const result = await response.json();
-            if (!response.ok) {
-                throw new Error(result.error || 'Failed to update VIP color');
-            }
-        }
-
-        // Update VIP message
-        if (updates.vipMessage) {
-            const response = await fetch('/api/updateVipMessage', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ auth: userId, vipMessage: updates.vipMessage })
-            });
-            const result = await response.json();
-            if (!response.ok) {
-                throw new Error(result.error || 'Failed to update VIP message');
-            }
-        }
-
-        // Update VIP celebration
-        if (updates.vipCelebration) {
-            const response = await fetch('/api/updateVipCelebration', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ auth: userId, vipCelebration: updates.vipCelebration })
-            });
-            const result = await response.json();
-            if (!response.ok) {
-                throw new Error(result.error || 'Failed to update VIP celebration');
-            }
-        }
-
-        // Update originalVipSettings with new saved values
-        if (updates.vip_color) originalVipSettings.color = updates.vip_color;
-        if (updates.vipMessage) originalVipSettings.message = updates.vipMessage;
-        if (updates.vipCelebration) originalVipSettings.celebration = updates.vipCelebration;
-
-        // Clear pending changes and update UI
-        Object.keys(pendingChanges).forEach(key => pendingChanges[key] = null);
-        updateSaveButtonState();
-
-        // Update displayed values
-        if (updates.vip_color) document.getElementById('vipColorPicker').value = updates.vip_color;
-        if (updates.vipMessage) document.getElementById('vipMessageInput').value = updates.vipMessage;
-        if (updates.vipCelebration) document.getElementById('vipCelebrationSelect').value = updates.vipCelebration;
-
-        console.log('Changes saved successfully');
-        showError('Changes saved successfully!', 'success');
-    } catch (error) {
-        console.error('Error saving profile changes:', error);
-        showError('Failed to save changes');
-    }
-}
-
-async function updateProfileInfo(userId) {
-    try {
-        // Fetch player stats from /api/getPlayerProfile
-        const statsResponse = await fetch(`/api/getPlayerProfile?auth=${userId}`);
-        if (!statsResponse.ok) {
-            const errorData = await statsResponse.json();
-            throw new Error(errorData.error || 'Failed to fetch player stats');
-        }
-        const { profile: stats } = await statsResponse.json();
-
-        // Fetch VIP status from /api/vip-status
-        const vipResponse = await fetch('/api/vip-status', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ auth: userId })
-        });
-        if (!vipResponse.ok) {
-            const errorData = await vipResponse.json();
-            throw new Error(errorData.error || 'Failed to fetch VIP status');
-        }
-        const vipData = await vipResponse.json();
-
-        // Fetch username from /api/login or another endpoint
-        const loginResponse = await fetch('/api/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ auth: userId })
-        });
-        const loginData = await loginResponse.json();
-        if (!loginResponse.ok) {
-            throw new Error(loginData.error || 'Failed to fetch username');
-        }
-
-        // Reset pending changes
-        pendingChanges = { color: null, message: null, celebration: null };
-        console.log('Profile loaded, pending changes reset:', pendingChanges);
-
-        // Store original VIP settings
-        originalVipSettings = {
-            color: vipData.vipColor || '#FFD700',
-            message: vipData.vipMessage || '',
-            celebration: vipData.vipCelebration || 'none'
         };
-        console.log('Original VIP settings:', originalVipSettings);
 
-        updateSaveButtonState();
+        nextClone.onclick = () => {
+            console.log('Next button clicked, currentPage:', currentPage);
+            if (currentPage < totalPages) {
+                currentRankingsPage = currentPage + 1;
+                loadRankings(currentRankingsPage, rankingsPerPage);
+            }
+        };
+    }
 
-        // Update profile info
-        document.getElementById('profileUsername').textContent = loginData.username || 'Unknown';
-        document.getElementById('userElo').textContent = stats.points || 0;
-        document.getElementById('userGames').textContent = stats.games_played || 0;
-        document.getElementById('userWins').textContent = stats.wins || 0;
-        document.getElementById('userDraws').textContent = stats.draws || 0;
-        document.getElementById('userLosses').textContent = stats.losses || 0;
-        document.getElementById('userGoals').textContent = stats.goals || 0;
-        document.getElementById('userAssists').textContent = stats.assists || 0;
-        document.getElementById('userCleansheets').textContent = stats.clean_sheets || 0;
-        document.getElementById('userVIP').textContent = vipData.isVip ? 'Yes' : 'No';
-        document.getElementById('buyVipButton').style.display = vipData.isVip ? 'none' : 'inline-block';
+    // Keep other functions unchanged (e.g., login, updateProfileInfo, etc.)
+    // Only include them here if they need minor adjustments for context
+    async function login(event) {
+        event.preventDefault();
+        
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const rememberMe = document.getElementById('rememberMe').checked;
+        const errorMessage = document.getElementById('errorMessage');
 
-        // Always show VIP fields, but lock them for non-VIP users
-        document.getElementById('vipColorRow').style.display = 'flex';
-        document.getElementById('vipMessageRow').style.display = 'flex';
-        document.getElementById('vipCelebrationRow').style.display = 'flex';
+        try {
+            console.log('Attempting login for username:', username);
+            const res = await fetch('http://localhost:3000/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
 
-        const vipColorPicker = document.getElementById('vipColorPicker');
-        const vipMessageInput = document.getElementById('vipMessageInput');
-        const vipCelebrationSelect = document.getElementById('vipCelebrationSelect');
+            const data = await res.json();
 
-        vipColorPicker.value = vipData.vipColor || '#FFD700';
-        vipMessageInput.value = vipData.vipMessage || '';
-        vipCelebrationSelect.value = vipData.vipCelebration || 'none';
+            if (!res.ok) {
+                console.error('Login failed:', data.error || 'Unknown error');
+                errorMessage.textContent = data.error || 'Login failed';
+                return;
+            }
 
-        if (vipData.isVip) {
-            // Enable fields for VIP users
-            vipColorPicker.disabled = false;
-            vipMessageInput.disabled = false;
-            vipCelebrationSelect.disabled = false;
+            if (!data.auth) {
+                console.error('No auth in API response:', data);
+                errorMessage.textContent = 'Error: Auth not provided by server';
+                return;
+            }
+            console.log('Login successful, setting auth:', data.auth);
+            currentUserAuth = data.auth;
+            const expiry = rememberMe ? Date.now() + 30 * 24 * 60 * 60 * 1000 : Date.now() + 24 * 60 * 60 * 1000;
+            localStorage.setItem('authData', JSON.stringify({ auth: data.auth, username, expiry }));
+            localStorage.setItem('userId', data.auth);
+            localStorage.setItem('currentUserAuth', data.auth); // Ensure currentUserAuth is stored
 
-            // Remove lock classes
-            vipColorPicker.classList.remove('locked');
-            vipMessageInput.classList.remove('locked');
-            vipCelebrationSelect.classList.remove('locked');
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('profileInfo').style.display = 'block';
+            document.getElementById('profileUsername').textContent = username;
+            document.getElementById('userElo').textContent = data.stats.points;
+            document.getElementById('userGames').textContent = data.stats.games_played;
+            document.getElementById('userWins').textContent = data.stats.wins;
+            document.getElementById('userDraws').textContent = data.stats.draws;
+            document.getElementById('userLosses').textContent = data.stats.losses;
+            document.getElementById('userGoals').textContent = data.stats.goals;
+            document.getElementById('userAssists').textContent = data.stats.assists;
+            document.getElementById('userCleansheets').textContent = data.stats.clean_sheets;
+
+            pendingChanges = { color: null, message: null, celebration: null };
+            originalVipSettings = {
+                color: data.vip_color || '#FFD700',
+                message: data.vipMessage || '',
+                celebration: data.vipCelebration || 'none'
+            };
+            console.log('Original VIP settings:', originalVipSettings);
+            updateSaveButtonState();
+
+            if (data.isVIP) {
+                document.getElementById('userVIP').textContent = 'Active';
+                document.getElementById('vipColorRow').style.display = 'flex';
+                document.getElementById('vipMessageRow').style.display = 'flex';
+                document.getElementById('vipCelebrationRow').style.display = 'flex';
+                document.getElementById('vipColorPicker').value = data.vip_color || '#FFD700';
+                document.getElementById('vipMessageInput').value = data.vipMessage || '';
+                document.getElementById('vipCelebrationSelect').value = data.vipCelebration || 'none';
+            } else {
+                document.getElementById('userVIP').textContent = 'Not VIP';
+                document.getElementById('buyVipButton').style.display = 'inline-block';
+            }
+
+            errorMessage.textContent = '';
+            // Refresh rankings to include user stats
+            if (document.getElementById('home').classList.contains('active')) {
+                loadRankings(currentRankingsPage, rankingsPerPage);
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            errorMessage.textContent = 'Error connecting to server.';
+        }
+    }
+
+    async function updateProfileInfo(userId) {
+        try {
+            const statsResponse = await fetch(`/api/getPlayerProfile?auth=${userId}`);
+            if (!statsResponse.ok) {
+                const errorData = await statsResponse.json();
+                throw new Error(errorData.error || 'Failed to fetch player stats');
+            }
+            const { profile: stats } = await statsResponse.json();
+
+            const vipResponse = await fetch('/api/vip-status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ auth: userId })
+            });
+            if (!vipResponse.ok) {
+                const errorData = await vipResponse.json();
+                throw new Error(errorData.error || 'Failed to fetch VIP status');
+            }
+            const vipData = await vipResponse.json();
+
+            const loginResponse = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ auth: userId })
+            });
+            const loginData = await loginResponse.json();
+            if (!loginResponse.ok) {
+                throw new Error(loginData.error || 'Failed to fetch username');
+            }
+
+            pendingChanges = { color: null, message: null, celebration: null };
+            originalVipSettings = {
+                color: vipData.vipColor || '#FFD700',
+                message: vipData.vipMessage || '',
+                celebration: vipData.vipCelebration || 'none'
+            };
+            console.log('Original VIP settings:', originalVipSettings);
+            updateSaveButtonState();
+
+            document.getElementById('profileUsername').textContent = loginData.username || 'Unknown';
+            document.getElementById('userElo').textContent = stats.points || 0;
+            document.getElementById('userGames').textContent = stats.games_played || 0;
+            document.getElementById('userWins').textContent = stats.wins || 0;
+            document.getElementById('userDraws').textContent = stats.draws || 0;
+            document.getElementById('userLosses').textContent = stats.losses || 0;
+            document.getElementById('userGoals').textContent = stats.goals || 0;
+            document.getElementById('userAssists').textContent = stats.assists || 0;
+            document.getElementById('userCleansheets').textContent = stats.clean_sheets || 0;
+            document.getElementById('userVIP').textContent = vipData.isVip ? 'Yes' : 'No';
+            document.getElementById('buyVipButton').style.display = vipData.isVip ? 'none' : 'inline-block';
+
+            document.getElementById('vipColorRow').style.display = 'flex';
+            document.getElementById('vipMessageRow').style.display = 'flex';
+            document.getElementById('vipCelebrationRow').style.display = 'flex';
+
+            const vipColorPicker = document.getElementById('vipColorPicker');
+            const vipMessageInput = document.getElementById('vipMessageInput');
+            const vipCelebrationSelect = document.getElementById('vipCelebrationSelect');
+
+            vipColorPicker.value = vipData.vipColor || '#FFD700';
+            vipMessageInput.value = vipData.vipMessage || '';
+            vipCelebrationSelect.value = vipData.vipCelebration || 'none';
+
+            if (vipData.isVip) {
+                vipColorPicker.disabled = false;
+                vipMessageInput.disabled = false;
+                vipCelebrationSelect.disabled = false;
+                vipColorPicker.classList.remove('locked');
+                vipMessageInput.classList.remove('locked');
+                vipCelebrationSelect.classList.remove('locked');
+            } else {
+                vipColorPicker.disabled = true;
+                vipMessageInput.disabled = true;
+                vipCelebrationSelect.disabled = true;
+                vipColorPicker.classList.add('locked');
+                vipMessageInput.classList.add('locked');
+                vipCelebrationSelect.classList.add('locked');
+            }
+
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('profileInfo').style.display = 'block';
+        } catch (error) {
+            console.error('Error fetching profile:', error);
+            showError('Failed to load profile');
+        }
+    }
+
+    // Other functions (unchanged)
+    function markPendingChange(type, value) {
+        console.log(`Marking change: ${type} = ${value}`);
+        if (type === 'color' && value !== originalVipSettings.color) {
+            pendingChanges.color = value;
+        } else if (type === 'message' && value !== originalVipSettings.message) {
+            pendingChanges.message = value;
+        } else if (type === 'celebration' && value !== originalVipSettings.celebration) {
+            pendingChanges.celebration = value;
         } else {
-            // Disable fields for non-VIP users
-            vipColorPicker.disabled = true;
-            vipMessageInput.disabled = true;
-            vipCelebrationSelect.disabled = true;
-
-            // Add lock classes
-            vipColorPicker.classList.add('locked');
-            vipMessageInput.classList.add('locked');
-            vipCelebrationSelect.classList.add('locked');
+            pendingChanges[type] = null;
         }
-
-        document.getElementById('loginForm').style.display = 'none';
-        document.getElementById('profileInfo').style.display = 'block';
-    } catch (error) {
-        console.error('Error fetching profile:', error);
-        showError('Failed to load profile');
-    }
-}
-
-function selectNation(nation) {
-    const flags = document.querySelectorAll('.flag-circle');
-    flags.forEach(flag => {
-        flag.classList.remove('selected');
-        if (flag.dataset.nation === nation) {
-            flag.classList.add('selected');
-        }
-    });
-    loadNationPaths(nation);
-}
-
-function loadNationPaths(nation) {
-    const pathContainer = document.getElementById('pathContainer');
-    pathContainer.innerHTML = '';
-    const nationInfo = nationData[nation];
-    let planeIdCounter = 0;
-
-    nationInfo.tiers.forEach((tier, tierIndex) => {
-        const tierDiv = document.createElement('div');
-        tierDiv.className = 'tier';
-        tierDiv.dataset.tier = tierIndex + 1;
-        tierDiv.innerHTML = `<h3>${tier.name}</h3>`;
-        const pathGroup = document.createElement('div');
-        pathGroup.className = 'path-group';
-
-        tier.paths.forEach((path, pathIndex) => {
-            const pathWrapper = document.createElement('div');
-            pathWrapper.className = 'path-wrapper';
-            pathWrapper.dataset.path = pathIndex + 1;
-            pathWrapper.innerHTML = `<h4 class="path-title">${path.name} Path</h4>`;
-            const planePath = document.createElement('div');
-            planePath.className = 'plane-path';
-
-            path.players.forEach(player => {
-                planeIdCounter++;
-                const planeCard = document.createElement('div');
-                planeCard.className = 'plane-card';
-                planeCard.dataset.unlocked = player.unlocked;
-                planeCard.dataset.planeId = `${tierIndex + 1}-${pathIndex + 1}-${planeIdCounter}`;
-                // Use player's image URL, fallback to a default if not provided
-                const playerImage = player.image || 'https://via.placeholder.com/100x100.png?text=No+Image';
-                planeCard.innerHTML = `
-                    <img src="${playerImage}" alt="${player.name}">
-                    <h4>${player.name}</h4>
-                    <p>Speed: ${player.speed}</p>
-                    <p>Cost: ${player.cost === 0 ? 'Free' : player.cost + ' Coins'}</p>
-                    <button class="select-button" data-action="${player.unlocked ? 'select' : 'unlock'}">${player.unlocked ? 'Select' : 'Unlock'}</button>
-                `;
-                if (player.unlocked && planeIdCounter === 1) {
-                    planeCard.querySelector('.select-button').classList.add('active');
-                    planeCard.querySelector('.select-button').innerText = 'Selected';
-                }
-                planePath.appendChild(planeCard);
-            });
-
-            pathWrapper.appendChild(planePath);
-            pathGroup.appendChild(pathWrapper);
-        });
-
-        tierDiv.appendChild(pathGroup);
-        pathContainer.appendChild(tierDiv);
-    });
-
-    // The rest of the function (event listeners, path lines, etc.) remains unchanged
-    const planeCards = document.querySelectorAll('.plane-card');
-    let currentCoins = parseInt(document.getElementById('currentCoins').innerText);
-
-    // Build path connections
-    const pathConnections = {};
-    const tiers = document.querySelectorAll('.tier');
-    tiers.forEach(tier => {
-        const tierNum = parseInt(tier.dataset.tier);
-        const planeCardsInTier = tier.querySelectorAll('.plane-card');
-        planeCardsInTier.forEach(card => {
-            const planeId = card.dataset.planeId;
-            const [tierIdx, pathIdx] = planeId.split('-').map(Number);
-            if (tierIdx < nationInfo.tiers.length) {
-                const nextTier = document.querySelector(`.tier[data-tier="${tierIdx + 1}"]`);
-                if (nextTier) {
-                    const nextPathCards = nextTier.querySelectorAll(`.path-wrapper[data-path="${pathIdx}"] .plane-card`);
-                    pathConnections[planeId] = Array.from(nextPathCards).map(card => card.dataset.planeId);
-                }
-            }
-        });
-    });
-
-    const drawPathLines = () => {
-        const svg = document.querySelector('.path-lines');
-        const scrollContainer = document.querySelector('.scroll-container');
-        const pathContainer = document.getElementById('pathContainer');
-
-        const containerRect = pathContainer.getBoundingClientRect();
-        svg.setAttribute('width', Math.max(1400, scrollContainer.scrollWidth));
-        svg.setAttribute('height', Math.max(600, containerRect.height));
-        svg.innerHTML = '';
-
-        planeCards.forEach(card => {
-            const rect = card.getBoundingClientRect();
-            const offsetX = rect.left - scrollContainer.getBoundingClientRect().left + scrollContainer.scrollLeft;
-            const offsetY = rect.top - scrollContainer.getBoundingClientRect().top + scrollContainer.scrollTop;
-            card.dataset.x = offsetX + (rect.width / 2);
-            card.dataset.y = offsetY + (rect.height / 2);
-        });
-
-        const pathLines = [];
-        planeCards.forEach(card => {
-            const planeId = card.dataset.planeId;
-            const nextPlaneIds = pathConnections[planeId] || [];
-            nextPlaneIds.forEach(nextPlaneId => {
-                const nextPlane = document.querySelector(`.plane-card[data-plane-id="${nextPlaneId}"]`);
-                if (nextPlane) {
-                    pathLines.push({
-                        x1: parseFloat(card.dataset.x),
-                        y1: parseFloat(card.dataset.y) + 20,
-                        x2: parseFloat(nextPlane.dataset.x),
-                        y2: parseFloat(nextPlane.dataset.y) - 20
-                    });
-                }
-            });
-        });
-
-        pathLines.forEach(line => {
-            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            path.setAttribute('d', `M${line.x1},${line.y1} L${line.x2},${line.y2}`);
-            path.setAttribute('stroke', '#FFD700');
-            path.setAttribute('stroke-width', '2');
-            path.setAttribute('stroke-dasharray', '5,5');
-            svg.appendChild(path);
-        });
-    };
-
-    function isPreviousPlaneUnlocked(planeId) {
-        const [tierNum, pathNum] = planeId.split('-').map(Number);
-        if (tierNum === 1) return true;
-
-        const prevTier = document.querySelector(`.tier[data-tier="${tierNum - 1}"]`);
-        if (!prevTier) return false;
-
-        const prevPathCards = prevTier.querySelectorAll(`.path-wrapper[data-path="${pathNum}"] .plane-card`);
-        return Array.from(prevPathCards).some(card => card.dataset.unlocked === 'true');
+        console.log('Pending changes:', pendingChanges);
+        updateSaveButtonState();
     }
 
-    planeCards.forEach(card => {
-        const button = card.querySelector('.select-button');
-        const cost = parseInt(card.querySelector('p:nth-child(3)').innerText.split(' ')[1]) || 0;
-        const planeId = card.dataset.planeId;
+    function updateSaveButtonState() {
+        const saveButton = document.getElementById('saveButton');
+        const hasChanges = Object.values(pendingChanges).some(change => change !== null);
+        console.log('Has changes:', hasChanges, 'Pending changes:', pendingChanges);
+        saveButton.disabled = !hasChanges;
+    }
 
-        if (card.dataset.unlocked !== 'true' && !isPreviousPlaneUnlocked(planeId)) {
-            button.disabled = true;
+    function showError(message, type = 'error') {
+        const errorMessage = document.getElementById('errorMessage');
+        errorMessage.textContent = message;
+        errorMessage.style.color = type === 'success' ? '#34D399' : '#E74C3C';
+        errorMessage.style.display = 'block';
+        setTimeout(() => {
+            errorMessage.style.display = 'none';
+        }, 3000);
+    }
+
+    async function saveProfileChanges() {
+        console.log('saveProfileChanges called, pending changes:', pendingChanges);
+        const userId = localStorage.getItem('userId');
+        if (!userId) {
+            showError('User not logged in');
+            console.log('No userId found in localStorage');
+            return;
         }
 
-        button.onclick = () => {
-            const isUnlocked = card.dataset.unlocked === 'true';
+        const updates = {};
+        if (pendingChanges.color !== null) updates.vip_color = pendingChanges.color;
+        if (pendingChanges.message !== null) updates.vipMessage = pendingChanges.message;
+        if (pendingChanges.celebration !== null) updates.vipCelebration = pendingChanges.celebration;
 
-            if (button.classList.contains('active')) return;
+        if (Object.keys(updates).length === 0) {
+            console.log('No updates to save');
+            return;
+        }
 
-            if (isUnlocked) {
-                planeCards.forEach(c => {
-                    const btn = c.querySelector('.select-button');
-                    btn.classList.remove('active');
-                    btn.innerText = 'Select';
+        try {
+            console.log('Sending updates:', updates);
+
+            if (updates.vip_color) {
+                const response = await fetch('/api/update-vip-color', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ auth: userId, color: updates.vip_color })
                 });
-                button.classList.add('active');
-                button.innerText = 'Selected';
-            } else if (currentCoins >= cost && isPreviousPlaneUnlocked(planeId)) {
-                currentCoins -= cost;
-                document.getElementById('currentCoins').innerText = currentCoins;
-                card.dataset.unlocked = 'true';
-                card.style.opacity = '1';
-                button.innerText = 'Select';
-                button.dataset.action = 'select';
-                button.disabled = false;
-
-                const [tierNum, pathNum] = planeId.split('-').map(Number);
-                const nextTier = document.querySelector(`.tier[data-tier="${tierNum + 1}"]`);
-                if (nextTier) {
-                    const nextPathCards = nextTier.querySelectorAll(`.path-wrapper[data-path="${pathNum}"] .plane-card`);
-                    nextPathCards.forEach(nextCard => {
-                        if (nextCard.dataset.unlocked !== 'true') {
-                            nextCard.querySelector('.select-button').disabled = false;
-                        }
-                    });
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.error || 'Failed to update VIP color');
                 }
-
-                drawPathLines();
-            } else if (currentCoins < cost) {
-                alert('Not enough coins to unlock this player!');
-            } else {
-                alert('You must unlock at least one player from the previous tier in this path first!');
             }
-        };
-    });
 
-    const scrollContainer = document.querySelector('.scroll-container');
-    let isDragging = false;
-    let startX;
-    let scrollLeft;
+            if (updates.vipMessage) {
+                const response = await fetch('/api/updateVipMessage', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ auth: userId, vipMessage: updates.vipMessage })
+                });
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.error || 'Failed to update VIP message');
+                }
+            }
 
-    scrollContainer.addEventListener('mousedown', (e) => {
-        isDragging = true;
-        startX = e.pageX - scrollContainer.offsetLeft;
-        scrollLeft = scrollContainer.scrollLeft;
-        scrollContainer.style.cursor = 'grabbing';
-    });
+            if (updates.vipCelebration) {
+                const response = await fetch('/api/updateVipCelebration', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ auth: userId, vipCelebration: updates.vipCelebration })
+                });
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.error || 'Failed to update VIP celebration');
+                }
+            }
 
-    scrollContainer.addEventListener('mouseleave', () => {
-        isDragging = false;
-        scrollContainer.style.cursor = 'grab';
-    });
+            if (updates.vip_color) originalVipSettings.color = updates.vip_color;
+            if (updates.vipMessage) originalVipSettings.message = updates.vipMessage;
+            if (updates.vipCelebration) originalVipSettings.celebration = updates.vipCelebration;
 
-    scrollContainer.addEventListener('mouseup', () => {
-        isDragging = false;
-        scrollContainer.style.cursor = 'grab';
-    });
+            Object.keys(pendingChanges).forEach(key => pendingChanges[key] = null);
+            updateSaveButtonState();
 
-    scrollContainer.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        e.preventDefault();
-        const x = e.pageX - scrollContainer.offsetLeft;
-        const walk = (x - startX) * 2;
-        scrollContainer.scrollLeft = scrollLeft - walk;
-        drawPathLines();
-    });
+            if (updates.vip_color) document.getElementById('vipColorPicker').value = updates.vip_color;
+            if (updates.vipMessage) document.getElementById('vipMessageInput').value = updates.vipMessage;
+            if (updates.vipCelebration) document.getElementById('vipCelebrationSelect').value = updates.vipCelebration;
 
-    scrollContainer.addEventListener('touchstart', (e) => {
-        isDragging = true;
-        startX = e.touches[0].pageX - scrollContainer.offsetLeft;
-        scrollLeft = scrollContainer.scrollLeft;
-    });
-
-    scrollContainer.addEventListener('touchend', () => {
-        isDragging = false;
-    });
-
-    scrollContainer.addEventListener('touchmove', (e) => {
-        if (!isDragging) return;
-        const x = e.touches[0].pageX - scrollContainer.offsetLeft;
-        const walk = (x - startX) * 2;
-        scrollContainer.scrollLeft = scrollLeft - walk;
-        drawPathLines();
-    });
-
-    window.addEventListener('resize', drawPathLines);
-    drawPathLines();
-}
+            console.log('Changes saved successfully');
+            showError('Changes saved successfully!', 'success');
+        } catch (error) {
+            console.error('Error saving profile changes:', error);
+            showError('Failed to save changes');
+        }
+    }
 
     function validateVipMessage(input) {
         input.value = input.value.replace(/[^a-zA-Z]/g, '').slice(0, 10);
     }
 
     async function checkAndUpdateVipStatus() {
-    if (!currentUserAuth) return { isVip: false, vipColor: null, vipMessage: null, vipCelebration: null };
+        if (!currentUserAuth) return { isVip: false, vipColor: null, vipMessage: null, vipCelebration: null };
 
-    try {
-        const res = await fetch('http://localhost:3000/api/vip-status', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ auth: currentUserAuth })
-        });
+        try {
+            const res = await fetch('http://localhost:3000/api/vip-status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ auth: currentUserAuth })
+            });
 
-        if (!res.ok) throw new Error('Failed to fetch VIP status');
-        
-        const data = await res.json();
-        return data;
-    } catch (err) {
-        console.error('Error fetching VIP status:', err);
-        return { isVip: false, vipColor: null, vipMessage: null, vipCelebration: null };
+            if (!res.ok) throw new Error('Failed to fetch VIP status');
+            
+            const data = await res.json();
+            return data;
+        } catch (err) {
+            console.error('Error fetching VIP status:', err);
+            return { isVip: false, vipColor: null, vipMessage: null, vipCelebration: null };
+        }
     }
-}
-
 
     async function updateVipUI() {
         const { isVip, vipColor, vipMessage, vipCelebration } = await checkAndUpdateVipStatus();
@@ -1940,143 +1819,45 @@ function loadNationPaths(nation) {
         vipCelebrationSelect.value = vipCelebration || 'none';
     }
 
-    async function login(event) {
-    event.preventDefault();
-    
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-    const rememberMe = document.getElementById('rememberMe').checked;
-    const errorMessage = document.getElementById('errorMessage');
-
-    try {
-        console.log('Attempting login for username:', username);
-        const res = await fetch('http://localhost:3000/api/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
-        });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-            console.error('Login failed:', data.error || 'Unknown error');
-            errorMessage.textContent = data.error || 'Login failed';
-            return;
-        }
-
-        // Store userId and auth in localStorage
-        if (!data.auth) {
-            console.error('No auth in API response:', data);
-            errorMessage.textContent = 'Error: Auth not provided by server';
-            return;
-        }
-        console.log('Login successful, setting auth:', data.auth);
-        currentUserAuth = data.auth; // Also set the currentUserAuth variable
-        const expiry = rememberMe ? Date.now() + 30 * 24 * 60 * 60 * 1000 : Date.now() + 24 * 60 * 60 * 1000; // 30 days or 1 day
-        localStorage.setItem('authData', JSON.stringify({ auth: data.auth, username, expiry }));
-        localStorage.setItem('userId', data.auth);
-
-        // Success: show profile data
-        document.getElementById('loginForm').style.display = 'none';
-        document.getElementById('profileInfo').style.display = 'block';
-        document.getElementById('profileUsername').textContent = username;
-        document.getElementById('userElo').textContent = data.stats.points;
-        document.getElementById('userGames').textContent = data.stats.games_played;
-        document.getElementById('userWins').textContent = data.stats.wins;
-        document.getElementById('userDraws').textContent = data.stats.draws;
-        document.getElementById('userLosses').textContent = data.stats.losses;
-        document.getElementById('userGoals').textContent = data.stats.goals;
-        document.getElementById('userAssists').textContent = data.stats.assists;
-        document.getElementById('userCleansheets').textContent = data.stats.clean_sheets;
-
-        // Reset pending changes and store original VIP settings
-        pendingChanges = { color: null, message: null, celebration: null };
-        originalVipSettings = {
-            color: data.vip_color || '#FFD700',
-            message: data.vipMessage || '',
-            celebration: data.vipCelebration || 'none'
-        };
-        console.log('Original VIP settings:', originalVipSettings);
-        updateSaveButtonState();
-
-        // VIP stuff
-        if (data.isVIP) {
-            document.getElementById('userVIP').textContent = 'Active';
-            document.getElementById('vipColorRow').style.display = 'flex';
-            document.getElementById('vipMessageRow').style.display = 'flex';
-            document.getElementById('vipCelebrationRow').style.display = 'flex';
-
-            document.getElementById('vipColorPicker').value = data.vip_color || '#FFD700';
-            document.getElementById('vipMessageInput').value = data.vipMessage || '';
-            document.getElementById('vipCelebrationSelect').value = data.vipCelebration || 'none';
-        } else {
-            document.getElementById('userVIP').textContent = 'Not VIP';
-            document.getElementById('buyVipButton').style.display = 'inline-block';
-        }
-
-        errorMessage.textContent = '';
-    } catch (error) {
-        console.error('Login error:', error);
-        errorMessage.textContent = 'Error connecting to server.';
-    }
-}
-
-    function addProfileHoverEffects() {
-        const profileInfo = document.getElementById('profileInfo');
-        const paragraphs = profileInfo.querySelectorAll('p');
-        paragraphs.forEach(p => {
-            p.onmouseover = () => {
-                p.style.background = 'rgba(255, 255, 255, 0.15)';
-                p.style.transform = 'translateX(8px)';
-                p.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.2)';
-            };
-            p.onmouseout = () => {
-                p.style.background = 'rgba(255, 255, 255, 0.1)';
-                p.style.transform = 'translateX(0)';
-                p.style.boxShadow = 'none';
-            };
-        });
+    async function buyVip() {
+        alert("VIP can not be purchased through the website yet. Please contact on Discord!");
     }
 
     async function handleBmcPurchase() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const authId = urlParams.get('custom');
-    console.log('handleBmcPurchase triggered. authId:', authId, 'currentUserAuth:', currentUserAuth);
+        const urlParams = new URLSearchParams(window.location.search);
+        const authId = urlParams.get('custom');
+        console.log('handleBmcPurchase triggered. authId:', authId, 'currentUserAuth:', currentUserAuth);
 
-    if (!currentUserAuth) currentUserAuth = localStorage.getItem('currentUserAuth');
+        if (!currentUserAuth) currentUserAuth = localStorage.getItem('currentUserAuth');
 
-    if (authId && authId === currentUserAuth) {
-        try {
-            const res = await fetch('http://localhost:3000/api/bmc-purchase', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ auth: userId })
-            });
+        if (authId && authId === currentUserAuth) {
+            try {
+                const res = await fetch('http://localhost:3000/api/bmc-purchase', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ auth: currentUserAuth })
+                });
 
-            const result = await res.json();
+                const result = await res.json();
 
-            if (!res.ok || !result.success) {
-                console.error('BMC backend error:', result.error);
-                throw new Error('Backend VIP update failed');
+                if (!res.ok || !result.success) {
+                    console.error('BMC backend error:', result.error);
+                    throw new Error('Backend VIP update failed');
+                }
+
+                console.log('VIP status updated successfully');
+                await updateVipUI();
+                document.getElementById('errorMessage').innerText = 'VIP status activated for 30 days!';
+                setTimeout(() => document.getElementById('errorMessage').innerText = '', 3000);
+                window.history.replaceState({}, document.title, window.location.pathname);
+            } catch (err) {
+                console.error('Error confirming purchase:', err);
+                document.getElementById('errorMessage').innerText = 'Error confirming payment. Contact support.';
             }
-
-            console.log('VIP status updated successfully');
-            await updateVipUI();
-            document.getElementById('errorMessage').innerText = 'VIP status activated for 30 days!';
-            setTimeout(() => document.getElementById('errorMessage').innerText = '', 3000);
-            window.history.replaceState({}, document.title, window.location.pathname);
-        } catch (err) {
-            console.error('Error confirming purchase:', err);
-            document.getElementById('errorMessage').innerText = 'Error confirming payment. Contact support.';
+        } else {
+            console.log('No matching authId or user not logged in');
         }
-    } else {
-        console.log('No matching authId or user not logged in');
     }
-}
-
-async function buyVip() {
-    alert("VIP can not be purchased through the website yet. Please contact on Discord!");
-}
 
     function debounce(func, wait) {
         let timeout;
@@ -2095,464 +1876,552 @@ async function buyVip() {
     const debouncedUpdateVipCelebration = debounce(updateVipCelebration, 500);
 
     async function updateVipColor(color) {
-    if (!currentUserAuth) {
-        document.getElementById('errorMessage').innerText = 'User not logged in.';
-        return;
-    }
-
-    const vipColorPicker = document.getElementById('vipColorPicker');
-    vipColorPicker.dataset.updating = 'true';
-
-    try {
-        const res = await fetch('http://localhost:3000/api/update-vip-color', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ auth: currentUserAuth, color })
-        });
-
-        const result = await res.json();
-
-        if (!res.ok) {
-            throw new Error(result.error || 'Unknown error');
-        }
-
-        document.getElementById('errorMessage').innerText = 'VIP color updated successfully!';
-        setTimeout(() => document.getElementById('errorMessage').innerText = '', 2000);
-    } catch (err) {
-        console.error('Error updating VIP color:', err);
-        document.getElementById('errorMessage').innerText = 'Failed to update VIP color.';
-        const { vipColor } = await checkAndUpdateVipStatus();
-        vipColorPicker.value = vipColor || '#ffffff';
-    } finally {
-        delete vipColorPicker.dataset.updating;
-    }
-}
-
-async function updateVipMessage(message) {
-    if (!currentUserAuth) {
-        document.getElementById('errorMessage').innerText = 'User not logged in.';
-        return;
-    }
-
-    const vipMessageInput = document.getElementById('vipMessageInput');
-    vipMessageInput.dataset.updating = 'true';
-
-    try {
-        const response = await fetch('/api/updateVipMessage', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ auth: currentUserAuth, vipMessage: message }),
-        });
-
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.error || 'Failed to update VIP message.');
-        }
-
-        document.getElementById('errorMessage').innerText = 'VIP message updated successfully!';
-        setTimeout(() => document.getElementById('errorMessage').innerText = '', 2000);
-    } catch (err) {
-        console.error('Error updating VIP message:', err);
-        document.getElementById('errorMessage').innerText = 'Failed to update VIP message.';
-        const { vipMessage } = await checkAndUpdateVipStatus();
-        vipMessageInput.value = vipMessage || '';
-    } finally {
-        delete vipMessageInput.dataset.updating;
-    }
-}
-
-async function updateVipCelebration(value) {
-    if (!currentUserAuth) {
-        document.getElementById('errorMessage').innerText = 'User not logged in.';
-        return;
-    }
-
-    const vipCelebrationSelect = document.getElementById('vipCelebrationSelect');
-    vipCelebrationSelect.dataset.updating = 'true';
-
-    try {
-        const celebrationValue = value === 'none' ? null : value.toLowerCase();
-        const response = await fetch('/api/updateVipCelebration', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ auth: currentUserAuth, vipCelebration: celebrationValue }),
-        });
-
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.error || 'Failed to update VIP celebration.');
-        }
-
-        document.getElementById('errorMessage').innerText = 'VIP celebration updated successfully!';
-        setTimeout(() => document.getElementById('errorMessage').innerText = '', 2000);
-    } catch (err) {
-        console.error('Error updating VIP celebration:', err);
-        document.getElementById('errorMessage').innerText = 'Failed to update VIP celebration.';
-        const { vipCelebration } = await checkAndUpdateVipStatus();
-        vipCelebrationSelect.value = vipCelebration || 'none';
-    } finally {
-        delete vipCelebrationSelect.dataset.updating;
-    }
-}
-
-async function loadRankings(page = 1, limit = 250) {
-    const now = Date.now();
-    const rankingBody = document.getElementById('rankingBody');
-    
-    // Show loading state
-    rankingBody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 20px;">Loading rankings...</td></tr>`;
-
-    try {
-        // Check if we have cached data for this page and if cache is fresh
-        if (cachedRankingsPages[page] && now - lastRankingsFetchTime < rankingsCacheDuration) {
-            console.log(`Using cached rankings for page ${page}`);
-            currentRankingsPage = page;
-            renderRankings(cachedRankingsPages[page], page);
-        } else {
-            // Fetch data for the specific page
-            currentRankingsPage = page;
-            const authQuery = currentUserAuth ? `&auth=${currentUserAuth}` : '';
-            const response = await fetch(`/api/getRankings?page=${page}&limit=${limit}${authQuery}`);
-            const data = await response.json();
-
-            if (!response.ok || !data || !data.statsData) {
-                throw new Error(data?.error || 'Error loading rankings');
-            }
-
-            console.log('API Response for page', page, {
-                statsDataLength: data.statsData.length,
-                totalItems: data.pagination.totalItems,
-                totalPages: data.pagination.totalPages
-            });
-
-            // Update cache for this page
-            cachedRankingsPages[page] = data;
-            lastRankingsFetchTime = now;
-            
-            renderRankings(data, page);
-        }
-    } catch (err) {
-        console.error('Error loading rankings:', err);
-        rankingBody.innerHTML = `
-            <tr>
-                <td colspan="3" style="text-align: center; padding: 20px; color: #ff6b6b;">
-                    Error loading rankings. 
-                    <button onclick="loadRankings(${page}, ${rankingsPerPage})" 
-                            style="background: none; border: none; color: #4dabf7; text-decoration: underline; cursor: pointer;">
-                        Try again
-                    </button>
-                </td>
-            </tr>
-        `;
-    }
-}
-
-function renderRankings(data, currentPage) {
-    const rankingBody = document.getElementById('rankingBody');
-    const userRankCell = document.getElementById('userRankCell');
-    const userNameCell = document.getElementById('userNameCell');
-    const userEloCell = document.getElementById('userEloCell');
-    const prevPageButton = document.getElementById('prevPage');
-    const nextPageButton = document.getElementById('nextPage');
-    const pageNumbersContainer = document.getElementById('pageNumbers');
-
-    // Clear existing content
-    rankingBody.innerHTML = '';
-    
-    // Create document fragment for efficient DOM updates
-    const fragment = document.createDocumentFragment();
-    
-    if (!data?.statsData || data.statsData.length === 0) {
-        const row = document.createElement('tr');
-        row.innerHTML = '<td colspan="3" style="text-align: center; padding: 20px;">No rankings available yet</td>';
-        fragment.appendChild(row);
-    } else {
-        data.statsData.forEach((stat, index) => {
-            const username = data.userData[stat.auth]?.nicknames?.[0] || 'Unknown';
-            const row = document.createElement('tr');
-            
-            // Add medal classes for top 3 positions
-            if (stat.rank === 1) row.classList.add('medal-gold');
-            else if (stat.rank === 2) row.classList.add('medal-silver');
-            else if (stat.rank === 3) row.classList.add('medal-bronze');
-            
-            row.innerHTML = `
-                <td>${stat.rank}</td>
-                <td>${username}</td>
-                <td>${stat.points ?? 0}</td>
-            `;
-            row.dataset.auth = stat.auth;
-            row.addEventListener('click', () => showPlayerProfile(stat.auth, username));
-            fragment.appendChild(row);
-        });
-    }
-    
-    rankingBody.appendChild(fragment);
-
-    // Update user's position in footer
-    if (currentUserAuth && data.userStats?.[currentUserAuth]) {
-        const userStat = data.userStats[currentUserAuth];
-        const username = data.userData[currentUserAuth]?.nicknames?.[0] || 'Unknown';
-        userRankCell.textContent = data.countRank || 'Unranked';
-        userNameCell.textContent = 'You';
-        userEloCell.textContent = userStat.points ?? 0;
-    } else {
-        userRankCell.textContent = 'N/A';
-        userNameCell.textContent = 'Not logged in (Login to see)';
-        userEloCell.textContent = 'N/A';
-    }
-
-    // Update pagination controls
-    const totalItems = data.pagination?.totalItems || 0;
-    const totalPages = data.pagination?.totalPages || 1;
-    
-    prevPageButton.disabled = currentPage === 1;
-    nextPageButton.disabled = totalPages <= 1 || currentPage >= totalPages;
-
-    // Clone buttons to remove old event listeners
-    const prevClone = prevPageButton.cloneNode(true);
-    const nextClone = nextPageButton.cloneNode(true);
-    prevPageButton.replaceWith(prevClone);
-    nextPageButton.replaceWith(nextClone);
-
-    // Update page numbers
-    pageNumbersContainer.innerHTML = '';
-    if (totalPages > 0) {
-        const maxPagesToShow = 5;
-        let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
-        let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
-        
-        if (endPage - startPage + 1 < maxPagesToShow) {
-            if (currentPage < totalPages / 2) {
-                endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
-            } else {
-                startPage = Math.max(1, endPage - maxPagesToShow + 1);
-            }
-        }
-
-        for (let i = startPage; i <= endPage; i++) {
-            const pageNumber = document.createElement('span');
-            pageNumber.className = `page-number ${i === currentPage ? 'active' : ''}`;
-            pageNumber.textContent = i;
-            pageNumber.onclick = () => {
-                console.log('Page number clicked:', i);
-                currentRankingsPage = i;
-                loadRankings(i, rankingsPerPage);
-            };
-            pageNumbersContainer.appendChild(pageNumber);
-        }
-    }
-
-    // Add event listeners to pagination buttons
-    prevClone.onclick = () => {
-        console.log('Previous button clicked, currentPage:', currentPage);
-        if (currentPage > 1) {
-            currentRankingsPage = currentPage - 1;
-            loadRankings(currentRankingsPage, rankingsPerPage);
-        }
-    };
-
-    nextClone.onclick = () => {
-        console.log('Next button clicked, currentPage:', currentPage);
-        if (currentPage < totalPages) {
-            currentRankingsPage = currentPage + 1;
-            loadRankings(currentRankingsPage, rankingsPerPage);
-        }
-    };
-}
-
-document.addEventListener('DOMContentLoaded', async () => {
-    // Existing auth check code
-    const authData = localStorage.getItem('authData');
-    preCacheAllRankings();
-    if (authData) {
-        const { auth, username, expiry } = JSON.parse(authData);
-        if (Date.now() >= expiry) {
-            localStorage.removeItem('authData');
-            localStorage.removeItem('userId');
+        if (!currentUserAuth) {
+            document.getElementById('errorMessage').innerText = 'User not logged in.';
             return;
         }
+
+        const vipColorPicker = document.getElementById('vipColorPicker');
+        vipColorPicker.dataset.updating = 'true';
 
         try {
-            const res = await fetch('http://localhost:3000/api/login/verify', {
+            const res = await fetch('http://localhost:3000/api/update-vip-color', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${auth}`
-                }
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ auth: currentUserAuth, color })
             });
-            const data = await res.json();
-            if (res.ok) {
-                currentUserAuth = auth;
-                localStorage.setItem('userId', auth);
-                document.getElementById('loginForm').style.display = 'none';
-                document.getElementById('profileInfo').style.display = 'block';
-                document.getElementById('profileUsername').textContent = username;
-                document.getElementById('userElo').textContent = data.stats.points;
-                document.getElementById('userGames').textContent = data.stats.games_played;
-                document.getElementById('userWins').textContent = data.stats.wins;
-                document.getElementById('userDraws').textContent = data.stats.draws;
-                document.getElementById('userLosses').textContent = data.stats.losses;
-                document.getElementById('userGoals').textContent = data.stats.goals;
-                document.getElementById('userAssists').textContent = data.stats.assists;
-                document.getElementById('userCleansheets').textContent = data.stats.clean_sheets;
 
-                pendingChanges = { color: null, message: null, celebration: null };
-                originalVipSettings = {
-                    color: data.vip_color || '#FFD700',
-                    message: data.vipMessage || '',
-                    celebration: data.vipCelebration || 'none'
-                };
-                updateSaveButtonState();
-                if (data.isVIP) {
-                    document.getElementById('userVIP').textContent = 'Active';
-                    document.getElementById('vipColorRow').style.display = 'flex';
-                    document.getElementById('vipMessageRow').style.display = 'flex';
-                    document.getElementById('vipCelebrationRow').style.display = 'flex';
-                    document.getElementById('vipColorPicker').value = data.vip_color || '#FFD700';
-                    document.getElementById('vipMessageInput').value = data.vipMessage || '';
-                    document.getElementById('vipCelebrationSelect').value = data.vipCelebration || 'none';
-                } else {
-                    document.getElementById('userVIP').textContent = 'Not VIP';
-                    document.getElementById('buyVipButton').style.display = 'inline-block';
-                }
-            } else {
-                localStorage.removeItem('authData');
-                localStorage.removeItem('userId');
+            const result = await res.json();
+
+            if (!res.ok) {
+                throw new Error(result.error || 'Unknown error');
             }
-        } catch (error) {
-            console.error('Auto-login error:', error);
-            localStorage.removeItem('authData');
-            localStorage.removeItem('userId');
+
+            document.getElementById('errorMessage').innerText = 'VIP color updated successfully!';
+            setTimeout(() => document.getElementById('errorMessage').innerText = '', 2000);
+        } catch (err) {
+            console.error('Error updating VIP color:', err);
+            document.getElementById('errorMessage').innerText = 'Failed to update VIP color.';
+            const { vipColor } = await checkAndUpdateVipStatus();
+            vipColorPicker.value = vipColor || '#ffffff';
+        } finally {
+            delete vipColorPicker.dataset.updating;
         }
     }
 
-    // Pre-load rankings data immediately
-    await loadRankings(currentRankingsPage, rankingsPerPage);
-    
-    // Set up periodic refresh (every 60 seconds)
-    setInterval(() => {
-        if (document.getElementById('home').classList.contains('active')) {
-            loadRankings(currentRankingsPage, rankingsPerPage);
-        }
-    }, 60000);
-});
-
-function renderProfile(data, username, container) {
-    container.innerHTML = `
-        <h3 style="text-align: center; font-size: 28px;">${username}</h3>
-        <div>
-            <p><strong>⭐ Elo:</strong> <span>${data.points}</span></p>
-            <p><strong>⏱️ Games:</strong> <span>${data.games_played}</span></p>
-            <p><strong>😃 Wins:</strong> <span>${data.wins}</span></p>
-            <p><strong>😐 Draws:</strong> <span>${data.draws}</span></p>
-            <p><strong>😒 Losses:</strong> <span>${data.losses}</span></p>
-            <p><strong>⚽ Goals:</strong> <span>${data.goals}</span></p>
-            <p><strong>🅰️ Assists:</strong> <span>${data.assists}</span></p>
-            <p><strong>🥅 Clean Sheets:</strong> <span>${data.clean_sheets}</span></p>
-        </div>
-    `;
-}
-
-    async function showPlayerProfile(authId, username) {
-    try {
-        const response = await fetch(`/api/getPlayerProfile?auth=${authId}`);
-        const data = await response.json();
-        if (!response.ok) {
-            console.error('Error fetching player profile:', data.error);
+    async function updateVipMessage(message) {
+        if (!currentUserAuth) {
+            document.getElementById('errorMessage').innerText = 'User not logged in.';
             return;
         }
 
-        // Create backdrop for blur effect
-        const backdrop = document.createElement('div');
-        backdrop.className = 'modal-backdrop';
-        backdrop.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5); /* Semi-transparent black overlay */
-            backdrop-filter: blur(5px); /* Apply blur effect */
-            -webkit-backdrop-filter: blur(5px); /* Safari support */
-            z-index: 999; /* Below modal (z-index: 1000) */
-            opacity: 0; /* Start invisible */
-            transition: opacity 0.3s ease; /* Match modal transition */
-        `;
+        const vipMessageInput = document.getElementById('vipMessageInput');
+        vipMessageInput.dataset.updating = 'true';
 
-        // Create modal
-        const modal = document.createElement('div');
-        modal.className = 'profile-info modal';
-        renderProfile(data.profile, username, modal);
+        try {
+            const response = await fetch('/api/updateVipMessage', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ auth: currentUserAuth, vipMessage: message })
+            });
 
-        // Close button
-        const closeButton = document.createElement('button');
-        closeButton.innerText = '×';
-        closeButton.style.cssText = `
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: none;
-            border: none;
-            color: #fff;
-            font-size: 28px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: transform 0.3s ease;
-        `;
-        closeButton.onmouseover = () => (closeButton.style.transform = 'scale(1.2)');
-        closeButton.onmouseout = () => (closeButton.style.transform = 'scale(1)');
-        closeButton.onclick = () => {
-            // Add zoom-out effect and fade out backdrop
-            modal.style.transform = 'translate(-50%, -50%) scale(0)';
-            modal.style.opacity = '0';
-            backdrop.style.opacity = '0';
-            setTimeout(() => {
-                document.body.removeChild(modal);
-                document.body.removeChild(backdrop); // Remove backdrop
-            }, 300); // Match transition duration
-        };
-        modal.appendChild(closeButton);
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to update VIP message.');
+            }
 
-        const menuWidth = 240; // Adjust to match your menu’s width in pixels
-        modal.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: calc(50% + ${menuWidth / 2}px);
-            transform: translate(-50%, -50%) scale(0); /* Start scaled down */
-            opacity: 0; /* Start invisible */
-            background: linear-gradient(135deg, #1E40AF, #3B82F6);
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-            z-index: 1000; /* Above backdrop */
-            max-width: 450px;
-            width: 90%;
-            color: #fff;
-            transition: transform 0.3s ease, opacity 0.3s ease; /* Animate scale and opacity */
-            overflow: hidden;
-            box-sizing: border-box;
-        `;
-
-        // Add backdrop and modal to DOM
-        document.body.appendChild(backdrop);
-        document.body.appendChild(modal);
-
-        // Trigger zoom-in effect and fade in backdrop after a slight delay
-        setTimeout(() => {
-            modal.style.transform = 'translate(-50%, -50%) scale(1)';
-            modal.style.opacity = '1';
-            backdrop.style.opacity = '1'; // Fade in backdrop
-        }, 10); // Small delay ensures transition is applied
-
-    } catch (err) {
-        console.error('Error showing player profile:', err);
+            document.getElementById('errorMessage').innerText = 'VIP message updated successfully!';
+            setTimeout(() => document.getElementById('errorMessage').innerText = '', 2000);
+        } catch (err) {
+            console.error('Error updating VIP message:', err);
+            document.getElementById('errorMessage').innerText = 'Failed to update VIP message.';
+            const { vipMessage } = await checkAndUpdateVipStatus();
+            vipMessageInput.value = vipMessage || '';
+        } finally {
+            delete vipMessageInput.dataset.updating;
+        }
     }
-}
+
+    async function updateVipCelebration(value) {
+        if (!currentUserAuth) {
+            document.getElementById('errorMessage').innerText = 'User not logged in.';
+            return;
+        }
+
+        const vipCelebrationSelect = document.getElementById('vipCelebrationSelect');
+        vipCelebrationSelect.dataset.updating = 'true';
+
+        try {
+            const celebrationValue = value === 'none' ? null : value.toLowerCase();
+            const response = await fetch('/api/updateVipCelebration', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ auth: currentUserAuth, vipCelebration: celebrationValue })
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to update VIP celebration.');
+            }
+
+            document.getElementById('errorMessage').innerText = 'VIP celebration updated successfully!';
+            setTimeout(() => document.getElementById('errorMessage').innerText = '', 2000);
+        } catch (err) {
+            console.error('Error updating VIP celebration:', err);
+            document.getElementById('errorMessage').innerText = 'Failed to update VIP celebration.';
+            const { vipCelebration } = await checkAndUpdateVipStatus();
+            vipCelebrationSelect.value = vipCelebration || 'none';
+        } finally {
+            delete vipCelebrationSelect.dataset.updating;
+        }
+    }
+
+    async function showPlayerProfile(authId, username) {
+        try {
+            const response = await fetch(`/api/getPlayerProfile?auth=${authId}`);
+            const data = await response.json();
+            if (!response.ok) {
+                console.error('Error fetching player profile:', data.error);
+                return;
+            }
+
+            const backdrop = document.createElement('div');
+            backdrop.className = 'modal-backdrop';
+            backdrop.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                backdrop-filter: blur(5px);
+                -webkit-backdrop-filter: blur(5px);
+                z-index: 999;
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            `;
+
+            const modal = document.createElement('div');
+            modal.className = 'profile-info modal';
+            renderProfile(data.profile, username, modal);
+
+            const closeButton = document.createElement('button');
+            closeButton.innerText = '×';
+            closeButton.style.cssText = `
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                background: none;
+                border: none;
+                color: #fff;
+                font-size: 28px;
+                font-weight: 700;
+                cursor: pointer;
+                transition: transform 0.3s ease;
+            `;
+            closeButton.onmouseover = () => (closeButton.style.transform = 'scale(1.2)');
+            closeButton.onmouseout = () => (closeButton.style.transform = 'scale(1)');
+            closeButton.onclick = () => {
+                modal.style.transform = 'translate(-50%, -50%) scale(0)';
+                modal.style.opacity = '0';
+                backdrop.style.opacity = '0';
+                setTimeout(() => {
+                    document.body.removeChild(modal);
+                    document.body.removeChild(backdrop);
+                }, 300);
+            };
+            modal.appendChild(closeButton);
+
+            const menuWidth = 240;
+            modal.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: calc(50% + ${menuWidth / 2}px);
+                transform: translate(-50%, -50%) scale(0);
+                opacity: 0;
+                background: linear-gradient(135deg, #1E40AF, #3B82F6);
+                padding: 30px;
+                border-radius: 15px;
+                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+                z-index: 1000;
+                max-width: 450px;
+                width: 90%;
+                color: #fff;
+                transition: transform 0.3s ease, opacity 0.3s ease;
+                overflow: hidden;
+                box-sizing: border-box;
+            `;
+
+            document.body.appendChild(backdrop);
+            document.body.appendChild(modal);
+
+            setTimeout(() => {
+                modal.style.transform = 'translate(-50%, -50%) scale(1)';
+                modal.style.opacity = '1';
+                backdrop.style.opacity = '1';
+            }, 10);
+        } catch (err) {
+            console.error('Error showing player profile:', err);
+        }
+    }
+
+    function renderProfile(data, username, container) {
+        container.innerHTML = `
+            <h3 style="text-align: center; font-size: 28px;">${username}</h3>
+            <div>
+                <p><strong>⭐ Elo:</strong> <span>${data.points}</span></p>
+                <p><strong>⏱️ Games:</strong> <span>${data.games_played}</span></p>
+                <p><strong>😃 Wins:</strong> <span>${data.wins}</span></p>
+                <p><strong>😐 Draws:</strong> <span>${data.draws}</span></p>
+                <p><strong>😒 Losses:</strong> <span>${data.losses}</span></p>
+                <p><strong>⚽ Goals:</strong> <span>${data.goals}</span></p>
+                <p><strong>🅰️ Assists:</strong> <span>${data.assists}</span></p>
+                <p><strong>🥅 Clean Sheets:</strong> <span>${data.clean_sheets}</span></p>
+            </div>
+        `;
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        // Check for existing auth
+        const authData = localStorage.getItem('authData');
+        if (authData) {
+            const { auth, username, expiry } = JSON.parse(authData);
+            if (Date.now() >= expiry) {
+                localStorage.removeItem('authData');
+                localStorage.removeItem('userId');
+                localStorage.removeItem('currentUserAuth');
+            } else {
+                try {
+                    // Note: The /api/login/verify endpoint doesn't exist in your server code
+                    // Replace with a call to /api/login with auth to verify
+                    const res = await fetch('http://localhost:3000/api/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ auth })
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        currentUserAuth = auth;
+                        localStorage.setItem('userId', auth);
+                        localStorage.setItem('currentUserAuth', auth);
+                        document.getElementById('loginForm').style.display = 'none';
+                        document.getElementById('profileInfo').style.display = 'block';
+                        document.getElementById('profileUsername').textContent = username;
+                        document.getElementById('userElo').textContent = data.stats.points;
+                        document.getElementById('userGames').textContent = data.stats.games_played;
+                        document.getElementById('userWins').textContent = data.stats.wins;
+                        document.getElementById('userDraws').textContent = data.stats.draws;
+                        document.getElementById('userLosses').textContent = data.stats.losses;
+                        document.getElementById('userGoals').textContent = data.stats.goals;
+                        document.getElementById('userAssists').textContent = data.stats.assists;
+                        document.getElementById('userCleansheets').textContent = data.stats.clean_sheets;
+
+                        pendingChanges = { color: null, message: null, celebration: null };
+                        originalVipSettings = {
+                            color: data.vip_color || '#FFD700',
+                            message: data.vipMessage || '',
+                            celebration: data.vipCelebration || 'none'
+                        };
+                        updateSaveButtonState();
+                        if (data.isVIP) {
+                            document.getElementById('userVIP').textContent = 'Active';
+                            document.getElementById('vipColorRow').style.display = 'flex';
+                            document.getElementById('vipMessageRow').style.display = 'flex';
+                            document.getElementById('vipCelebrationRow').style.display = 'flex';
+                            document.getElementById('vipColorPicker').value = data.vip_color || '#FFD700';
+                            document.getElementById('vipMessageInput').value = data.vipMessage || '';
+                            document.getElementById('vipCelebrationSelect').value = data.vipCelebration || 'none';
+                        } else {
+                            document.getElementById('userVIP').textContent = 'Not VIP';
+                            document.getElementById('buyVipButton').style.display = 'inline-block';
+                        }
+                    } else {
+                        localStorage.removeItem('authData');
+                        localStorage.removeItem('userId');
+                        localStorage.removeItem('currentUserAuth');
+                    }
+                } catch (error) {
+                    console.error('Auto-login error:', error);
+                    localStorage.removeItem('authData');
+                    localStorage.removeItem('userId');
+                    localStorage.removeItem('currentUserAuth');
+                }
+            }
+        }
+
+        // Load rankings for the home page
+        if (document.getElementById('home').classList.contains('active')) {
+            await loadRankings(currentRankingsPage, rankingsPerPage);
+        }
+
+        // Optional: Periodic refresh for rankings page (every 60 seconds)
+        setInterval(() => {
+            if (document.getElementById('home').classList.contains('active')) {
+                loadRankings(currentRankingsPage, rankingsPerPage);
+            }
+        }, 60000);
+    });
+
+    // Nation selector and career path functions (unchanged)
+    function selectNation(nation) {
+        const flags = document.querySelectorAll('.flag-circle');
+        flags.forEach(flag => {
+            flag.classList.remove('selected');
+            if (flag.dataset.nation === nation) {
+                flag.classList.add('selected');
+            }
+        });
+        loadNationPaths(nation);
+    }
+
+    function loadNationPaths(nation) {
+        const pathContainer = document.getElementById('pathContainer');
+        pathContainer.innerHTML = '';
+        const nationInfo = nationData[nation];
+        let planeIdCounter = 0;
+
+        nationInfo.tiers.forEach((tier, tierIndex) => {
+            const tierDiv = document.createElement('div');
+            tierDiv.className = 'tier';
+            tierDiv.dataset.tier = tierIndex + 1;
+            tierDiv.innerHTML = `<h3>${tier.name}</h3>`;
+            const pathGroup = document.createElement('div');
+            pathGroup.className = 'path-group';
+
+            tier.paths.forEach((path, pathIndex) => {
+                const pathWrapper = document.createElement('div');
+                pathWrapper.className = 'path-wrapper';
+                pathWrapper.dataset.path = pathIndex + 1;
+                pathWrapper.innerHTML = `<h4 class="path-title">${path.name} Path</h4>`;
+                const planePath = document.createElement('div');
+                planePath.className = 'plane-path';
+
+                path.players.forEach(player => {
+                    planeIdCounter++;
+                    const planeCard = document.createElement('div');
+                    planeCard.className = 'plane-card';
+                    planeCard.dataset.unlocked = player.unlocked;
+                    planeCard.dataset.planeId = `${tierIndex + 1}-${pathIndex + 1}-${planeIdCounter}`;
+                    const playerImage = player.image || 'https://via.placeholder.com/100x100.png?text=No+Image';
+                    planeCard.innerHTML = `
+                        <img src="${playerImage}" alt="${player.name}">
+                        <h4>${player.name}</h4>
+                        <p>Speed: ${player.speed}</p>
+                        <p>Cost: ${player.cost === 0 ? 'Free' : player.cost + ' Coins'}</p>
+                        <button class="select-button" data-action="${player.unlocked ? 'select' : 'unlock'}">${player.unlocked ? 'Select' : 'Unlock'}</button>
+                    `;
+                    if (player.unlocked && planeIdCounter === 1) {
+                        planeCard.querySelector('.select-button').classList.add('active');
+                        planeCard.querySelector('.select-button').innerText = 'Selected';
+                    }
+                    planePath.appendChild(planeCard);
+                });
+
+                pathWrapper.appendChild(planePath);
+                pathGroup.appendChild(pathWrapper);
+            });
+
+            tierDiv.appendChild(pathGroup);
+            pathContainer.appendChild(tierDiv);
+        });
+
+        const planeCards = document.querySelectorAll('.plane-card');
+        let currentCoins = parseInt(document.getElementById('currentCoins').innerText);
+
+        const pathConnections = {};
+        const tiers = document.querySelectorAll('.tier');
+        tiers.forEach(tier => {
+            const tierNum = parseInt(tier.dataset.tier);
+            const planeCardsInTier = tier.querySelectorAll('.plane-card');
+            planeCardsInTier.forEach(card => {
+                const planeId = card.dataset.planeId;
+                const [tierIdx, pathIdx] = planeId.split('-').map(Number);
+                if (tierIdx < nationInfo.tiers.length) {
+                    const nextTier = document.querySelector(`.tier[data-tier="${tierIdx + 1}"]`);
+                    if (nextTier) {
+                        const nextPathCards = nextTier.querySelectorAll(`.path-wrapper[data-path="${pathIdx}"] .plane-card`);
+                        pathConnections[planeId] = Array.from(nextPathCards).map(card => card.dataset.planeId);
+                    }
+                }
+            });
+        });
+
+        const drawPathLines = () => {
+            const svg = document.querySelector('.path-lines');
+            const scrollContainer = document.querySelector('.scroll-container');
+            const pathContainer = document.getElementById('pathContainer');
+
+            const containerRect = pathContainer.getBoundingClientRect();
+            svg.setAttribute('width', Math.max(1400, scrollContainer.scrollWidth));
+            svg.setAttribute('height', Math.max(600, containerRect.height));
+            svg.innerHTML = '';
+
+            planeCards.forEach(card => {
+                const rect = card.getBoundingClientRect();
+                const offsetX = rect.left - scrollContainer.getBoundingClientRect().left + scrollContainer.scrollLeft;
+                const offsetY = rect.top - scrollContainer.getBoundingClientRect().top + scrollContainer.scrollTop;
+                card.dataset.x = offsetX + (rect.width / 2);
+                card.dataset.y = offsetY + (rect.height / 2);
+            });
+
+            const pathLines = [];
+            planeCards.forEach(card => {
+                const planeId = card.dataset.planeId;
+                const nextPlaneIds = pathConnections[planeId] || [];
+                nextPlaneIds.forEach(nextPlaneId => {
+                    const nextPlane = document.querySelector(`.plane-card[data-plane-id="${nextPlaneId}"]`);
+                    if (nextPlane) {
+                        pathLines.push({
+                            x1: parseFloat(card.dataset.x),
+                            y1: parseFloat(card.dataset.y) + 20,
+                            x2: parseFloat(nextPlane.dataset.x),
+                            y2: parseFloat(nextPlane.dataset.y) - 20
+                        });
+                    }
+                });
+            });
+
+            pathLines.forEach(line => {
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', `M${line.x1},${line.y1} L${line.x2},${line.y2}`);
+                path.setAttribute('stroke', '#FFD700');
+                path.setAttribute('stroke-width', '2');
+                path.setAttribute('stroke-dasharray', '5,5');
+                svg.appendChild(path);
+            });
+        };
+
+        function isPreviousPlaneUnlocked(planeId) {
+            const [tierNum, pathNum] = planeId.split('-').map(Number);
+            if (tierNum === 1) return true;
+
+            const prevTier = document.querySelector(`.tier[data-tier="${tierNum - 1}"]`);
+            if (!prevTier) return false;
+
+            const prevPathCards = prevTier.querySelectorAll(`.path-wrapper[data-path="${pathNum}"] .plane-card`);
+            return Array.from(prevPathCards).some(card => card.dataset.unlocked === 'true');
+        }
+
+        planeCards.forEach(card => {
+            const button = card.querySelector('.select-button');
+            const cost = parseInt(card.querySelector('p:nth-child(3)').innerText.split(' ')[1]) || 0;
+            const planeId = card.dataset.planeId;
+
+            if (card.dataset.unlocked !== 'true' && !isPreviousPlaneUnlocked(planeId)) {
+                button.disabled = true;
+            }
+
+            button.onclick = () => {
+                const isUnlocked = card.dataset.unlocked === 'true';
+
+                if (button.classList.contains('active')) return;
+
+                if (isUnlocked) {
+                    planeCards.forEach(c => {
+                        const btn = c.querySelector('.select-button');
+                        btn.classList.remove('active');
+                        btn.innerText = 'Select';
+                    });
+                    button.classList.add('active');
+                    button.innerText = 'Selected';
+                } else if (currentCoins >= cost && isPreviousPlaneUnlocked(planeId)) {
+                    currentCoins -= cost;
+                    document.getElementById('currentCoins').innerText = currentCoins;
+                    card.dataset.unlocked = 'true';
+                    card.style.opacity = '1';
+                    button.innerText = 'Select';
+                    button.dataset.action = 'select';
+                    button.disabled = false;
+
+                    const [tierNum, pathNum] = planeId.split('-').map(Number);
+                    const nextTier = document.querySelector(`.tier[data-tier="${tierNum + 1}"]`);
+                    if (nextTier) {
+                        const nextPathCards = nextTier.querySelectorAll(`.path-wrapper[data-path="${pathNum}"] .plane-card`);
+                        nextPathCards.forEach(nextCard => {
+                            if (nextCard.dataset.unlocked !== 'true') {
+                                nextCard.querySelector('.select-button').disabled = false;
+                            }
+                        });
+                    }
+
+                    drawPathLines();
+                } else if (currentCoins < cost) {
+                    alert('Not enough coins to unlock this player!');
+                } else {
+                    alert('You must unlock at least one player from the previous tier in this path first!');
+                }
+            };
+        });
+
+        const scrollContainer = document.querySelector('.scroll-container');
+        let isDragging = false;
+        let startX;
+        let scrollLeft;
+
+        scrollContainer.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startX = e.pageX - scrollContainer.offsetLeft;
+            scrollLeft = scrollContainer.scrollLeft;
+            scrollContainer.style.cursor = 'grabbing';
+        });
+
+        scrollContainer.addEventListener('mouseleave', () => {
+            isDragging = false;
+            scrollContainer.style.cursor = 'grab';
+        });
+
+        scrollContainer.addEventListener('mouseup', () => {
+            isDragging = false;
+            scrollContainer.style.cursor = 'grab';
+        });
+
+        scrollContainer.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            e.preventDefault();
+            const x = e.pageX - scrollContainer.offsetLeft;
+            const walk = (x - startX) * 2;
+            scrollContainer.scrollLeft = scrollLeft - walk;
+            drawPathLines();
+        });
+
+        scrollContainer.addEventListener('touchstart', (e) => {
+            isDragging = true;
+            startX = e.touches[0].pageX - scrollContainer.offsetLeft;
+            scrollLeft = scrollContainer.scrollLeft;
+        });
+
+        scrollContainer.addEventListener('touchend', () => {
+            isDragging = false;
+        });
+
+        scrollContainer.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            const x = e.touches[0].pageX - scrollContainer.offsetLeft;
+            const walk = (x - startX) * 2;
+            scrollContainer.scrollLeft = scrollLeft - walk;
+            drawPathLines();
+        });
+
+        window.addEventListener('resize', drawPathLines);
+        drawPathLines();
+    }
+
+    function addProfileHoverEffects() {
+        const profileInfo = document.getElementById('profileInfo');
+        const paragraphs = profileInfo.querySelectorAll('p');
+        paragraphs.forEach(p => {
+            p.onmouseover = () => {
+                p.style.background = 'rgba(255, 255, 255, 0.15)';
+                p.style.transform = 'translateX(8px)';
+                p.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.2)';
+            };
+            p.onmouseout = () => {
+                p.style.background = 'rgba(255, 255, 255, 0.1)';
+                p.style.transform = 'translateX(0)';
+                p.style.boxShadow = 'none';
+            };
+        });
+    }
 </script>
 </body>
 </html>
