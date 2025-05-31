@@ -320,6 +320,14 @@ app.post('/api/vip-status', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  const os = require('os');
+  const interfaces = os.networkInterfaces();
+
+  console.log('Available on:');
+  Object.values(interfaces).flat().forEach(i => {
+    if (i.family === 'IPv4') {
+      console.log(`http://${i.address}:3000`);
+    }
+  });
 });
