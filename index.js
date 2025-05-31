@@ -3,6 +3,7 @@ const { createClient } = require('@supabase/supabase-js');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const path = require('path');
+const NodeCache = require('node-cache');
 
 // Load environment variables
 dotenv.config();
@@ -14,10 +15,178 @@ app.use(express.json());
 // Serve static files (including HTML)
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Initialize Supabase client
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
+// Initialize cache
+const cache = new NodeCache({ stdTTL: 7 * 60 }); // 7 minutes TTL
+const CACHE_KEY_RANKINGS = 'rankings_pages';
+const CACHE_KEY_PLAYER_PROFILES = 'player_profiles';
+const CACHE_KEY_ROOM_LINK = 'room_link';
+const CACHE_KEY_VIP_STATUS = 'vip_status';
+
+// Function to fetch and cache all rankings pages
+async function cacheRankingsData() {
+    try {
+        const perPage = 250;
+        let allRankingsPages = {};
+
+        // Get total count for pagination
+        const { count: totalCount, error: countError } = await supabase
+            .from('player_stats')
+            .select('auth', { count: 'exact', head: true });
+
+        if (countError) {
+            console.error('Error fetching total count:', countError);
+            return;
+        }
+
+        const totalPages = Math.ceil(totalCount / perPage);
+
+        // Fetch all pages
+        for (let page = 1; page <= totalPages; page++) {
+            const offset = (page - 1) * perPage;
+
+            // Fetch paginated player stats
+            const { data: statsData, error: statsError } = await supabase
+                .from('player_stats')
+                .select('auth, rank, points, games_played, wins, draws, losses, goals, assists, clean_sheets')
+                .order('rank', { ascending: true })
+                .range(offset, offset + perPage - 1);
+
+            if (statsError) {
+                console.error(`Error fetching stats for page ${page}:`, statsError);
+                continue;
+            }
+
+            // Fetch user data for all auth IDs in this page
+            const authIds = statsData.map(stat => stat.auth);
+            const { data: userDataRaw, error: userError } = await supabase
+                .from('users')
+                .select('auth, nicknames')
+                .in('auth', authIds);
+
+            if (userError) {
+                console.error(`Error fetching user data for page ${page}:`, userError);
+                continue;
+            }
+
+            const userData = userDataRaw.reduce((acc, user) => {
+                acc[user.auth] = user;
+                return acc;
+            }, {});
+
+            // Store page data
+            allRankingsPages[page] = {
+                statsData,
+                userData,
+                pagination: {
+                    currentPage: page,
+                    perPage,
+                    totalItems: totalCount,
+                    totalPages
+                }
+            };
+        }
+
+        // Cache the data
+        cache.set(CACHE_KEY_RANKINGS, allRankingsPages);
+        console.log(`Cached ${Object.keys(allRankingsPages).length} pages of rankings data`);
+    } catch (err) {
+        console.error('Error caching rankings data:', err);
+    }
+}
+
+// Function to cache player profiles
+async function cachePlayerProfiles() {
+    try {
+        const { data: profiles, error } = await supabase
+            .from('player_stats')
+            .select('auth, wins, losses, draws, goals, assists, points, games_played, clean_sheets');
+
+        if (error) {
+            console.error('Error caching player profiles:', error);
+            return;
+        }
+
+        const profileMap = profiles.reduce((acc, profile) => {
+            acc[profile.auth] = profile;
+            return acc;
+        }, {});
+
+        cache.set(CACHE_KEY_PLAYER_PROFILES, profileMap);
+        console.log(`Cached ${Object.keys(profileMap).length} player profiles`);
+    } catch (err) {
+        console.error('Error caching player profiles:', err);
+    }
+}
+
+// Function to cache room link
+async function cacheRoomLink() {
+    try {
+        const { data, error } = await supabase
+            .from('room_link')
+            .select('room_link, total_players, red_players, blue_players, spec_players, blue_score, red_score')
+            .eq('id', 1)
+            .single();
+
+        if (error) {
+            console.error('Error caching room link:', error);
+            return;
+        }
+
+        cache.set(CACHE_KEY_ROOM_LINK, data);
+        console.log('Cached room link data');
+    } catch (err) {
+        console.error('Error caching room link:', err);
+    }
+}
+
+// Function to cache VIP status
+async function cacheVipStatus() {
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .select('auth, isVIP, vip_color, vipMessage, vipCelebration, vip_expires_at');
+
+        if (error) {
+            console.error('Error caching VIP status:', error);
+            return;
+        }
+
+        const vipMap = data.reduce((acc, user) => {
+            acc[user.auth] = {
+                isVIP: user.isVIP && new Date(user.vip_expires_at) > new Date(),
+                vip_color: user.vip_color,
+                vipMessage: user.vipMessage,
+                vipCelebration: user.vipCelebration
+            };
+            return acc;
+        }, {});
+
+        cache.set(CACHE_KEY_VIP_STATUS, vipMap);
+        console.log(`Cached VIP status for ${Object.keys(vipMap).length} users`);
+    } catch (err) {
+        console.error('Error caching VIP status:', err);
+    }
+}
+
+// Schedule cache refresh every 7 minutes
+setInterval(() => {
+    console.log('Refreshing server-side cache...');
+    cacheRankingsData();
+    cachePlayerProfiles();
+    cacheRoomLink();
+    cacheVipStatus();
+}, 7 * 60 * 1000);
+
+// Initial cache population
+cacheRankingsData();
+cachePlayerProfiles();
+cacheRoomLink();
+cacheVipStatus();
+
 app.get('/', (req, res) => {
-    // Serve the index.html from the 'public' folder
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
@@ -49,6 +218,17 @@ app.post('/api/login', async (req, res) => {
         if (statsError || !statsData) {
             return res.status(400).json({ error: 'Error fetching player stats' });
         }
+
+        // Update VIP status cache for this user
+        cache.set(CACHE_KEY_VIP_STATUS, {
+            ...cache.get(CACHE_KEY_VIP_STATUS),
+            [user.auth]: {
+                isVIP: user.isVIP && new Date(user.vip_expires_at) > new Date(),
+                vip_color: user.vip_color,
+                vipMessage: user.vipMessage,
+                vipCelebration: user.vipCelebration
+            }
+        });
 
         res.json({
             auth: user.auth,
@@ -82,6 +262,13 @@ app.post('/api/updateVipMessage', async (req, res) => {
             return res.status(500).json({ error: 'Failed to update VIP message' });
         }
 
+        // Update cache
+        const vipStatus = cache.get(CACHE_KEY_VIP_STATUS) || {};
+        if (vipStatus[auth]) {
+            vipStatus[auth].vipMessage = vipMessage;
+            cache.set(CACHE_KEY_VIP_STATUS, vipStatus);
+        }
+
         res.json({ success: true });
     } catch (err) {
         console.error('Server error updating VIP message:', err);
@@ -104,6 +291,13 @@ app.post('/api/updateVipCelebration', async (req, res) => {
             return res.status(500).json({ error: 'Failed to update VIP celebration' });
         }
 
+        // Update cache
+        const vipStatus = cache.get(CACHE_KEY_VIP_STATUS) || {};
+        if (vipStatus[auth]) {
+            vipStatus[auth].vipCelebration = vipCelebration;
+            cache.set(CACHE_KEY_VIP_STATUS, vipStatus);
+        }
+
         res.json({ success: true });
     } catch (err) {
         console.error('Server error updating VIP celebration:', err);
@@ -116,6 +310,12 @@ app.get('/api/getPlayerProfile', async (req, res) => {
     const { auth } = req.query;
 
     try {
+        const profiles = cache.get(CACHE_KEY_PLAYER_PROFILES) || {};
+        if (profiles[auth]) {
+            console.log(`Serving player profile for auth ${auth} from cache`);
+            return res.json({ profile: profiles[auth] });
+        }
+
         const { data: profileData, error } = await supabase
             .from('player_stats')
             .select('wins, losses, draws, goals, assists, points, games_played, clean_sheets')
@@ -125,6 +325,9 @@ app.get('/api/getPlayerProfile', async (req, res) => {
         if (error || !profileData) {
             return res.status(400).json({ error: 'Error fetching player profile' });
         }
+
+        // Update cache
+        cache.set(CACHE_KEY_PLAYER_PROFILES, { ...profiles, [auth]: profileData });
 
         res.json({ profile: profileData });
     } catch (err) {
@@ -157,6 +360,16 @@ app.post('/api/bmc-purchase', async (req, res) => {
             return res.status(500).json({ error: 'Failed to update VIP status' });
         }
 
+        // Update cache
+        const vipStatus = cache.get(CACHE_KEY_VIP_STATUS) || {};
+        vipStatus[auth] = {
+            isVIP: true,
+            vip_color: '#ffffff',
+            vipMessage: '',
+            vipCelebration: null
+        };
+        cache.set(CACHE_KEY_VIP_STATUS, vipStatus);
+
         res.json({ success: true });
     } catch (err) {
         console.error('BMC purchase error:', err);
@@ -179,6 +392,13 @@ app.post('/api/update-vip-color', async (req, res) => {
             return res.status(500).json({ error: 'Failed to update VIP color' });
         }
 
+        // Update cache
+        const vipStatus = cache.get(CACHE_KEY_VIP_STATUS) || {};
+        if (vipStatus[auth]) {
+            vipStatus[auth].vip_color = color;
+            cache.set(CACHE_KEY_VIP_STATUS, vipStatus);
+        }
+
         res.json({ success: true });
     } catch (err) {
         console.error('Server error updating VIP color:', err);
@@ -188,6 +408,12 @@ app.post('/api/update-vip-color', async (req, res) => {
 
 app.get('/api/room-link', async (req, res) => {
     try {
+        const cachedRoomLink = cache.get(CACHE_KEY_ROOM_LINK);
+        if (cachedRoomLink) {
+            console.log('Serving room link from cache');
+            return res.json(cachedRoomLink);
+        }
+
         const { data, error } = await supabase
             .from('room_link')
             .select('room_link, total_players, red_players, blue_players, spec_players, blue_score, red_score')
@@ -197,6 +423,8 @@ app.get('/api/room-link', async (req, res) => {
         if (error) {
             return res.status(400).json({ error: 'Could not fetch room link' });
         }
+
+        cache.set(CACHE_KEY_ROOM_LINK, data);
         res.json(data);
     } catch (err) {
         console.error('Room link fetch error:', err);
@@ -206,16 +434,45 @@ app.get('/api/room-link', async (req, res) => {
 
 app.get('/api/getRankings', async (req, res) => {
     try {
-        // Get page number from query params (default to 1 if not provided)
         const page = parseInt(req.query.page) || 1;
+        const cachedRankings = cache.get(CACHE_KEY_RANKINGS);
+
+        if (cachedRankings && cachedRankings[page]) {
+            console.log(`Serving rankings page ${page} from cache`);
+
+            // Fetch user stats if auth is provided
+            let userStats = {};
+            let userRank = null;
+            if (req.query.auth) {
+                const { data: userStat, error: userStatError } = await supabase
+                    .from('player_stats')
+                    .select('auth, rank, points, games_played, wins, draws, losses, goals, assists, clean_sheets')
+                    .eq('auth', req.query.auth)
+                    .single();
+
+                if (userStatError) {
+                    console.error('Error fetching user stats:', userStatError);
+                } else {
+                    userStats[req.query.auth] = userStat;
+                    userRank = userStat.rank;
+                }
+            }
+
+            return res.json({
+                ...cachedRankings[page],
+                userStats,
+                countRank: userRank !== null ? userRank : 'Unranked'
+            });
+        }
+
+        // Fallback to fetching data if cache is empty
         const perPage = 250;
         const offset = (page - 1) * perPage;
 
-        // Fetch paginated player stats including the rank column
         const { data: statsData, error: statsError } = await supabase
             .from('player_stats')
             .select('auth, rank, points, games_played, wins, draws, losses, goals, assists, clean_sheets')
-            .order('rank', { ascending: true }) // Order by rank instead of points
+            .order('rank', { ascending: true })
             .range(offset, offset + perPage - 1);
 
         if (statsError) {
@@ -223,7 +480,6 @@ app.get('/api/getRankings', async (req, res) => {
             return res.status(500).json({ error: 'Failed to fetch rankings' });
         }
 
-        // Get total count for pagination
         const { count: totalCount, error: countError } = await supabase
             .from('player_stats')
             .select('auth', { count: 'exact', head: true });
@@ -233,7 +489,6 @@ app.get('/api/getRankings', async (req, res) => {
             return res.status(500).json({ error: 'Failed to fetch total count' });
         }
 
-        // Fetch user data for all auth IDs
         const authIds = statsData.map(stat => stat.auth);
         const { data: userDataRaw, error: userError } = await supabase
             .from('users')
@@ -245,15 +500,13 @@ app.get('/api/getRankings', async (req, res) => {
             return res.status(500).json({ error: 'Failed to fetch user data' });
         }
 
-        // Map user data by auth ID
-        const userData = userDataRaw.reduce((acc, user) => {
-            acc[user.auth] = user;
+        const userData = userDataRaw.reduce((acc, curr) => {
+            acc[curr.auth] = curr;
             return acc;
         }, {});
 
-        // Fetch current user's stats if logged in
         let userStats = {};
-        let userRank = null; // Will store the rank from the database
+        let userRank = null;
         if (req.query.auth) {
             const { data: userStat, error: userStatError } = await supabase
                 .from('player_stats')
@@ -265,22 +518,29 @@ app.get('/api/getRankings', async (req, res) => {
                 console.error('Error fetching user stats:', userStatError);
             } else {
                 userStats[req.query.auth] = userStat;
-                userRank = userStat.rank; // Use the rank from the database
+                userRank = userStat.rank;
             }
         }
 
-        res.json({
+        const responseData = {
             statsData,
             userData,
             userStats,
-            countRank: userRank !== null ? userRank : 'Unranked', // Use DB rank or 'Unranked'
+            countRank: userRank !== null ? userRank : 'Unranked',
             pagination: {
                 currentPage: page,
                 perPage,
                 totalItems: totalCount,
                 totalPages: Math.ceil(totalCount / perPage)
             }
-        });
+        };
+
+        // Update cache for this page
+        const updatedRankings = cachedRankings || {};
+        updatedRankings[page] = { statsData, userData, pagination: responseData.pagination };
+        cache.set(CACHE_KEY_RANKINGS, updatedRankings);
+
+        res.json(responseData);
     } catch (err) {
         console.error('Error in getRankings:', err);
         res.status(500).json({ error: 'Server error' });
@@ -291,10 +551,16 @@ app.post('/api/vip-status', async (req, res) => {
     const { auth } = req.body;
 
     if (!auth) {
-        return res.json({ isVip: false, vipColor: null, vipMessage: null, vipCelebration: null });
+        return res.json({ auth: '', isVip: false, vipColor: null, vipMessage: null, vipCelebration: null });
     }
 
     try {
+        const vipStatus = cache.get(CACHE_KEY_VIP_STATUS) || {};
+        if (vipStatus[auth]) {
+            console.log(`Serving VIP status for ${auth} from cache`);
+            return res.json(vipStatus[auth]);
+        }
+
         const { data: userData, error } = await supabase
             .from('users')
             .select('isVIP, vip_color, vipMessage, vipCelebration, vip_expires_at')
@@ -302,17 +568,22 @@ app.post('/api/vip-status', async (req, res) => {
             .single();
 
         if (error || !userData) {
-            console.error('Error fetching VIP status:', error);
-            return res.status(500).json({ error: 'Failed to fetch VIP status' });
+            console.error('Error retrieving VIP status:', error);
+            return res.status(500).json({ error: 'Failed to retrieve VIP status' });
         }
 
         const isVip = userData.isVIP && new Date(userData.vip_expires_at) > new Date();
-        res.json({
+        const vipData = {
             isVip,
             vipColor: userData.vip_color,
             vipMessage: userData.vipMessage,
             vipCelebration: userData.vipCelebration
-        });
+        };
+
+        // Update cache
+        cache.set(CACHE_KEY_VIP_STATUS, { ...vipStatus, [auth]: vipData });
+
+        res.json(vipData);
     } catch (err) {
         console.error('Error in vip-status:', err);
         res.status(500).json({ error: 'Server error' });
@@ -321,13 +592,13 @@ app.post('/api/vip-status', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
-  const os = require('os');
-  const interfaces = os.networkInterfaces();
+    const os = require('os');
+    const interfaces = os.networkInterfaces();
 
-  console.log('Available on:');
-  Object.values(interfaces).flat().forEach(i => {
-    if (i.family === 'IPv4') {
-      console.log(`http://${i.address}:3000`);
-    }
-  });
+    console.log('Available on:');
+    Object.values(interfaces).flat().forEach(i => {
+        if (i.family === 'IPv4') {
+            console.log(`http://${i.address}:${PORT}`);
+        }
+    });
 });
