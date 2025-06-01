@@ -1942,38 +1942,110 @@ function loadNationPaths(nation) {
 
     async function login(event) {
     event.preventDefault();
+    
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
     const rememberMe = document.getElementById('rememberMe').checked;
     const errorMessage = document.getElementById('errorMessage');
+    const loginForm = document.getElementById('loginForm');
+    const profileInfo = document.getElementById('profileInfo');
+
+    // Show loading state
+    errorMessage.textContent = 'Logging in...';
+    errorMessage.style.color = '#fff';
+    errorMessage.style.display = 'block';
 
     try {
         console.log('Attempting login for username:', username);
-        const res = await fetch('http://localhost:3000/api/login', {
+        const response = await fetch('/api/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })
         });
 
-        const data = await res.json();
-        console.log('Login response:', data);
+        const data = await response.json();
 
-        if (!res.ok) {
-            throw new Error(data.error || 'Login failed');
+        if (!response.ok || !data || !data.auth) {
+            throw new Error(data?.error || 'Login failed');
         }
 
-        if (rememberMe) {
-            localStorage.setItem('user', JSON.stringify(data));
+        console.log('Login successful, setting auth:', data.auth);
+        currentUserAuth = data.auth;
+        const expiry = rememberMe ? Date.now() + 30 * 24 * 60 * 60 * 1000 : Date.now() + 24 * 60 * 60 * 1000; // 30 days or 1 day
+        localStorage.setItem('authData', JSON.stringify({ auth: data.auth, username, expiry }));
+        localStorage.setItem('userId', data.auth);
+        localStorage.setItem('currentUserAuth', data.auth);
+
+        // Update profile UI
+        loginForm.style.display = 'none';
+        profileInfo.style.display = 'block';
+        document.getElementById('profileUsername').textContent = data.username || 'Unknown';
+        document.getElementById('userElo').textContent = data.stats?.points || 0;
+        document.getElementById('userGames').textContent = data.stats?.games_played || 0;
+        document.getElementById('userWins').textContent = data.stats?.wins || 0;
+        document.getElementById('userDraws').textContent = data.stats?.draws || 0;
+        document.getElementById('userLosses').textContent = data.stats?.losses || 0;
+        document.getElementById('userGoals').textContent = data.stats?.goals || 0;
+        document.getElementById('userAssists').textContent = data.stats?.assists || 0;
+        document.getElementById('userCleansheets').textContent = data.stats?.clean_sheets || 0;
+
+        // Reset pending changes and store original VIP settings
+        pendingChanges = { color: null, message: null, celebration: null };
+        originalVipSettings = {
+            color: data.vip_color || '#FFD700',
+            message: data.vipMessage || '',
+            celebration: data.vipCelebration || 'none'
+        };
+        console.log('Original VIP settings:', originalVipSettings);
+        updateSaveButtonState();
+
+        // Handle VIP status
+        if (data.isVIP) {
+            document.getElementById('userVIP').textContent = 'Active';
+            document.getElementById('vipColorRow').style.display = 'flex';
+            document.getElementById('vipMessageRow').style.display = 'flex';
+            document.getElementById('vipCelebrationRow').style.display = 'flex';
+            document.getElementById('vipColorPicker').value = data.vip_color || '#FFD700';
+            document.getElementById('vipMessageInput').value = data.vipMessage || '';
+            document.getElementById('vipCelebrationSelect').value = data.vipCelebration || 'none';
+            document.getElementById('buyVipButton').style.display = 'none';
+            
+            // Enable VIP fields
+            document.getElementById('vipColorPicker').disabled = false;
+            document.getElementById('vipMessageInput').disabled = false;
+            document.getElementById('vipCelebrationSelect').disabled = false;
         } else {
-            sessionStorage.setItem('user', JSON.stringify(data));
+            document.getElementById('userVIP').textContent = 'Not VIP';
+            document.getElementById('buyVipButton').style.display = 'inline-block';
+            document.getElementById('vipColorRow').style.display = 'flex';
+            document.getElementById('vipMessageRow').style.display = 'flex';
+            document.getElementById('vipCelebrationRow').style.display = 'flex';
+            
+            // Disable VIP fields for non-VIP users
+            document.getElementById('vipColorPicker').disabled = true;
+            document.getElementById('vipMessageInput').disabled = true;
+            document.getElementById('vipCelebrationSelect').disabled = true;
         }
 
-        errorMessage.textContent = '';
-        console.log('Login successful, redirecting...');
-        window.location.href = '/dashboard.html';
+        errorMessage.textContent = 'Login successful!';
+        errorMessage.style.color = '#34D399'; // Success color
+        setTimeout(() => {
+            errorMessage.style.display = 'none';
+        }, 3000);
+
+        // Refresh rankings to include user data
+        if (document.getElementById('home').classList.contains('active')) {
+            await loadRankings(currentRankingsPage, rankingsPerPage);
+        }
+
     } catch (error) {
         console.error('Login error:', error);
-        errorMessage.textContent = 'Error connecting to server.';
+        errorMessage.textContent = error.message || 'Error connecting to server';
+        errorMessage.style.color = '#E74C3C';
+        errorMessage.style.display = 'block';
+        setTimeout(() => {
+            errorMessage.style.display = 'none';
+        }, 3000);
     }
 }
 
