@@ -2066,42 +2066,6 @@ function loadNationPaths(nation) {
         });
     }
 
-    async function handleBmcPurchase() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const authId = urlParams.get('custom');
-    console.log('handleBmcPurchase triggered. authId:', authId, 'currentUserAuth:', currentUserAuth);
-
-    if (!currentUserAuth) currentUserAuth = localStorage.getItem('currentUserAuth');
-
-    if (authId && authId === currentUserAuth) {
-        try {
-            const res = await fetch('http://localhost:3000/api/bmc-purchase', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ auth: userId })
-            });
-
-            const result = await res.json();
-
-            if (!res.ok || !result.success) {
-                console.error('BMC backend error:', result.error);
-                throw new Error('Backend VIP update failed');
-            }
-
-            console.log('VIP status updated successfully');
-            await updateVipUI();
-            document.getElementById('errorMessage').innerText = 'VIP status activated for 30 days!';
-            setTimeout(() => document.getElementById('errorMessage').innerText = '', 3000);
-            window.history.replaceState({}, document.title, window.location.pathname);
-        } catch (err) {
-            console.error('Error confirming purchase:', err);
-            document.getElementById('errorMessage').innerText = 'Error confirming payment. Contact support.';
-        }
-    } else {
-        console.log('No matching authId or user not logged in');
-    }
-}
-
 async function buyVip() {
     alert("VIP can not be purchased through the website yet. Please contact on Discord!");
 }
@@ -2124,7 +2088,12 @@ async function buyVip() {
 
     async function updateVipColor(color) {
     if (!currentUserAuth) {
-        document.getElementById('errorMessage').innerText = 'User not logged in.';
+        document.getElementById('errorMessage').textContent = 'User not logged in.';
+        document.getElementById('errorMessage').style.color = '#E74C3C';
+        document.getElementById('errorMessage').style.display = 'block';
+        setTimeout(() => {
+            document.getElementById('errorMessage').style.display = 'none';
+        }, 3000);
         return;
     }
 
@@ -2132,25 +2101,41 @@ async function buyVip() {
     vipColorPicker.dataset.updating = 'true';
 
     try {
-        const res = await fetch('http://localhost:3000/api/update-vip-color', {
+        const response = await fetch('/api/update-vip-color', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ auth: currentUserAuth, color })
         });
 
-        const result = await res.json();
+        const result = await response.json();
 
-        if (!res.ok) {
-            throw new Error(result.error || 'Unknown error');
+        if (!response.ok) {
+            throw new Error(result.error || 'Failed to update VIP color');
         }
 
-        document.getElementById('errorMessage').innerText = 'VIP color updated successfully!';
-        setTimeout(() => document.getElementById('errorMessage').innerText = '', 2000);
+        // Update originalVipSettings to reflect the saved change
+        originalVipSettings.color = color;
+        pendingChanges.color = null; // Clear pending change
+        updateSaveButtonState();
+
+        document.getElementById('errorMessage').textContent = 'VIP color updated successfully!';
+        document.getElementById('errorMessage').style.color = '#34D399';
+        document.getElementById('errorMessage').style.display = 'block';
+        setTimeout(() => {
+            document.getElementById('errorMessage').style.display = 'none';
+        }, 2000);
     } catch (err) {
         console.error('Error updating VIP color:', err);
-        document.getElementById('errorMessage').innerText = 'Failed to update VIP color.';
+        document.getElementById('errorMessage').textContent = 'Failed to update VIP color.';
+        document.getElementById('errorMessage').style.color = '#E74C3C';
+        document.getElementById('errorMessage').style.display = 'block';
+        setTimeout(() => {
+            document.getElementById('errorMessage').style.display = 'none';
+        }, 3000);
+
+        // Revert to the last known VIP color from server
         const { vipColor } = await checkAndUpdateVipStatus();
-        vipColorPicker.value = vipColor || '#ffffff';
+        vipColorPicker.value = vipColor || '#FFD700';
     } finally {
         delete vipColorPicker.dataset.updating;
     }
