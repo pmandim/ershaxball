@@ -1757,7 +1757,7 @@ function handleSortChange() {
 
 async function updateProfileInfo(auth) {
     try {
-        const response = await fetch(`http://localhost:3000/api/getPlayerProfile?auth=${auth}&userAuth=${auth}`, {
+        const response = await fetch(`/api/getPlayerProfile?auth=${auth}&userAuth=${auth}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -1778,7 +1778,7 @@ async function updateProfileInfo(auth) {
         }
 
         // Fetch VIP status
-        const vipResponse = await fetch('http://localhost:3000/api/vip-status', {
+        const vipResponse = await fetch('/api/vip-status', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -2098,7 +2098,7 @@ function loadNationPaths(nation) {
     if (!currentUserAuth) return { isVip: false, vipColor: null, vipMessage: null, vipCelebration: null };
 
     try {
-        const res = await fetch('http://localhost:3000/api/vip-status', {
+        const res = await fetch('/api/vip-status', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ auth: currentUserAuth })
@@ -2636,7 +2636,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const verifyTokenWithRetry = async (auth, retries = 3, delay = 2000) => {
             for (let i = 0; i < retries; i++) {
                 try {
-                    const res = await fetch('http://localhost:3000/api/login/verify', {
+                    const res = await fetch('/api/login/verify', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -2787,7 +2787,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const { auth } = JSON.parse(authData);
         setInterval(async () => {
             try {
-                const res = await fetch(`http://localhost:3000/api/getPlayerProfile?auth=${auth}&userAuth=${auth}`, {
+                const res = await fetch(`/api/getPlayerProfile?auth=${auth}&userAuth=${auth}`, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
@@ -2803,7 +2803,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     throw new Error(data.error || 'Profile fetch failed');
                 }
 
-                const vipRes = await fetch('http://localhost:3000/api/vip-status', {
+                const vipRes = await fetch('/api/vip-status', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
