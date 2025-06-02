@@ -91,7 +91,6 @@ async function cacheRankingsData() {
 
         // Cache the data
         cache.set(CACHE_KEY_RANKINGS, allRankingsPages);
-        console.log(`Cached ${Object.keys(allRankingsPages).length} pages of rankings data`);
     } catch (err) {
         console.error('Error caching rankings data:', err);
     }
@@ -115,7 +114,6 @@ async function cachePlayerProfiles() {
         }, {});
 
         cache.set(CACHE_KEY_PLAYER_PROFILES, profileMap);
-        console.log(`Cached ${Object.keys(profileMap).length} player profiles`);
     } catch (err) {
         console.error('Error caching player profiles:', err);
     }
@@ -136,7 +134,6 @@ async function cacheRoomLink() {
         }
 
         cache.set(CACHE_KEY_ROOM_LINK, data);
-        console.log('Cached room link data');
     } catch (err) {
         console.error('Error caching room link:', err);
     }
@@ -165,7 +162,6 @@ async function cacheVipStatus() {
         }, {});
 
         cache.set(CACHE_KEY_VIP_STATUS, vipMap);
-        console.log(`Cached VIP status for ${Object.keys(vipMap).length} users`);
     } catch (err) {
         console.error('Error caching VIP status:', err);
     }
@@ -173,7 +169,6 @@ async function cacheVipStatus() {
 
 // Schedule cache refresh every 7 minutes
 setInterval(() => {
-    console.log('Refreshing server-side cache...');
     cacheRankingsData();
     cachePlayerProfiles();
     cacheRoomLink();
@@ -305,17 +300,101 @@ app.post('/api/updateVipCelebration', async (req, res) => {
     }
 });
 
-// Get player profile
-app.get('/api/getPlayerProfile', async (req, res) => {
-    const { auth } = req.query;
+// Verify auth token
+app.post('/api/login/verify', async (req, res) => {
+    const auth = req.headers.authorization?.replace('Bearer ', '');
+
+    if (!auth) {
+        return res.status(401).json({ error: 'No auth token provided' });
+    }
 
     try {
+        // Fetch user data
+        const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('auth, nicknames, isVIP, vip_expires_at, vip_color, vipMessage, vipCelebration')
+            .eq('auth', auth)
+            .single();
+
+        if (userError || !userData) {
+            return res.status(401).json({ error: 'Invalid auth token' });
+        }
+
+        // Fetch player stats
+        const { data: statsData, error: statsError } = await supabase
+            .from('player_stats')
+            .select('wins, losses, draws, goals, assists, points, games_played, clean_sheets')
+            .eq('auth', auth)
+            .single();
+
+        if (statsError || !statsData) {
+            return res.status(400).json({ error: 'Error fetching player stats' });
+        }
+
+        // Update VIP status cache
+        cache.set(CACHE_KEY_VIP_STATUS, {
+            ...cache.get(CACHE_KEY_VIP_STATUS),
+            [auth]: {
+                isVIP: userData.isVIP && new Date(userData.vip_expires_at) > new Date(),
+                vip_color: userData.vip_color,
+                vipMessage: userData.vipMessage,
+                vipCelebration: userData.vipCelebration
+            }
+        });
+
+        // Return user and stats data
+        res.json({
+            auth: userData.auth,
+            userId: userData.auth,
+            username: userData.nicknames[0], // Use first nickname
+            stats: statsData,
+            isVIP: userData.isVIP && new Date(userData.vip_expires_at) > new Date(),
+            vip_expires_at: userData.vip_expires_at,
+            vip_color: userData.vip_color,
+            vipMessage: userData.vipMessage,
+            vipCelebration: userData.vipCelebration
+        });
+    } catch (err) {
+        console.error('Verify error:', err);
+        res.status(500).json({ error: 'An error occurred during verification' });
+    }
+});
+
+// Get player profile
+app.get('/api/getPlayerProfile', async (req, res) => {
+    const { auth } = req.query; // The auth ID of the profile being requested
+    const userAuth = req.headers.authorization?.replace('Bearer ', '') || req.query.userAuth; // Get the logged-in user's auth from header or query
+
+    try {
+        // Check if the requested profile is the logged-in user's own profile
+        const isOwnProfile = auth === userAuth;
+
+        // If it's the user's own profile, fetch directly from Supabase
+        if (isOwnProfile) {
+            const { data: profileData, error } = await supabase
+                .from('player_stats')
+                .select('wins, losses, draws, goals, assists, points, games_played, clean_sheets')
+                .eq('auth', auth)
+                .single();
+
+            if (error || !profileData) {
+                return res.status(400).json({ error: 'Error fetching player profile' });
+            }
+
+            // Update cache with the fresh data
+            const profiles = cache.get(CACHE_KEY_PLAYER_PROFILES) || {};
+            cache.set(CACHE_KEY_PLAYER_PROFILES, { ...profiles, [auth]: profileData });
+
+            return res.json({ profile: profileData });
+        }
+
+        // For other users' profiles, check the cache first
         const profiles = cache.get(CACHE_KEY_PLAYER_PROFILES) || {};
         if (profiles[auth]) {
-            console.log(`Serving player profile for auth ${auth} from cache`);
             return res.json({ profile: profiles[auth] });
         }
 
+        // Cache miss: fetch from Supabase for other users
         const { data: profileData, error } = await supabase
             .from('player_stats')
             .select('wins, losses, draws, goals, assists, points, games_played, clean_sheets')
@@ -410,7 +489,6 @@ app.get('/api/room-link', async (req, res) => {
     try {
         const cachedRoomLink = cache.get(CACHE_KEY_ROOM_LINK);
         if (cachedRoomLink) {
-            console.log('Serving room link from cache');
             return res.json(cachedRoomLink);
         }
 
@@ -438,7 +516,6 @@ app.get('/api/getRankings', async (req, res) => {
         const cachedRankings = cache.get(CACHE_KEY_RANKINGS);
 
         if (cachedRankings && cachedRankings[page]) {
-            console.log(`Serving rankings page ${page} from cache`);
 
             // Fetch user stats if auth is provided
             let userStats = {};
@@ -557,7 +634,6 @@ app.post('/api/vip-status', async (req, res) => {
     try {
         const vipStatus = cache.get(CACHE_KEY_VIP_STATUS) || {};
         if (vipStatus[auth]) {
-            console.log(`Serving VIP status for ${auth} from cache`);
             return res.json(vipStatus[auth]);
         }
 
