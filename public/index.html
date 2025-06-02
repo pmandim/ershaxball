@@ -23,6 +23,115 @@
             overflow-x: hidden;
         }
 
+        .logout-button {
+    width: 40%;
+    padding: 8px;
+    background: linear-gradient(135deg, #EF4444, #DC2626);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    margin: 10px auto 0; /* Center with margin auto, keep top margin */
+    display: block; /* Ensure block-level for margin auto to work */
+}
+
+.ranking-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.ranking-controls label {
+    font-size: 18px;
+    font-weight: 500;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    letter-spacing: 0.5px;
+}
+
+.ranking-controls select {
+    padding: 12px 40px 12px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: linear-gradient(135deg, #2563EB, #60A5FA); /* Vibrant blue gradient */
+    color: #fff;
+    font-size: 16px;
+    font-weight: 500;
+    font-family: 'Poppins', sans-serif;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%23fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>');
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    outline: none;
+}
+
+.ranking-controls select:hover {
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+    background: linear-gradient(135deg, #2563EB, #60A5FA); /* Same blue gradient */
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%23fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>');
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+}
+
+.ranking-controls select:focus {
+    border-color: #FFD700;
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.3);
+    transform: scale(1.02);
+}
+
+.ranking-controls select option {
+    background: #1E40AF;
+    color: #fff;
+    font-size: 16px;
+    padding: 10px;
+}
+
+.ranking-controls select option:checked {
+    background: #2563EB;
+    color: #fff;
+    font-weight: 600;
+}
+
+.logout-button:hover {
+    background: linear-gradient(135deg, #DC2626, #EF4444);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 15px rgba(220, 38, 38, 0.5);
+}
+
+/* Blur effect for non-VIP users */
+.non-vip-blur {
+    filter: blur(2px);
+    pointer-events: none;
+    opacity: 0.7;
+    position: relative; /* Lock for positioning the lock emoji */
+    user-select: none; /* Prevent text selection for better UX */
+}
+
+.non-vip-blur::after {
+    content: '🔒'; /* Lock emoji */
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%); /* Center the emoji */
+    font-size: 24px; /* Adjust size as needed */
+    color: #333; /* Dark color for visibility */
+    z-index: 10; /* Ensure emoji is above the blurred content */
+    pointer-events: none; /* Prevent interaction with the emoji */
+}
+
         nav {
             width: 250px;
             background: rgba(0, 51, 153, 0.95);
@@ -1227,35 +1336,50 @@ nav a.discord-link:hover {
                 </form>
                 <p class="error-message" id="errorMessage"></p>
             </div>
-            <div class="profile-info" id="profileInfo" style="display:none;">
-                <h3><span id="profileUsername"></span></h3>
-                <div>
-                    <p><strong>⭐ Elo:</strong> <span id="userElo"></span></p>
-                    <p><strong>⏱️ Games:</strong> <span id="userGames"></span></p>
-                    <p><strong>😃 Wins:</strong> <span id="userWins"></span></p>
-                    <p><strong>😐 Draws:</strong> <span id="userDraws"></span></p>
-                    <p><strong>😒 Losses:</strong> <span id="userLosses"></span></p>
-                    <p><strong>⚽ Goals:</strong> <span id="userGoals"></span></p>
-                    <p><strong>🅰️ Assists:</strong> <span id="userAssists"></span></p>
-                    <p><strong>🥅 Clean Sheets:</strong> <span id="userCleansheets"></span></p>
-                    <p id="vipRow"><strong>👑 VIP:</strong> <span style="display: flex; align-items: center; gap: 10px; flex-direction: row-reverse;"><span id="userVIP"></span><button id="buyVipButton" class="buy-button" style="display:none;" onclick="buyVip()">Buy VIP</button></span></p>
-                    <p id="vipColorRow" style="display: none;"><strong>🎨 VIP Color:</strong><span><input type="color" id="vipColorPicker" onchange="markPendingChange('color', this.value)"></span></p>
-                    <p id="vipMessageRow" style="display: none;"><strong>💬 VIP Message:</strong><span><input type="text" id="vipMessageInput" maxlength="10" placeholder="VIP Message" oninput="validateVipMessage(this); markPendingChange('message', this.value)"></span></p>
-                    <p id="vipCelebrationRow" style="display: none;"><strong>🎉 VIP Celebration:</strong><span><select id="vipCelebrationSelect" onchange="markPendingChange('celebration', this.value)"><option value="none">None</option><option value="explosion">Explosion</option><option value="blinking">Blinking</option><option value="machinegun">Machine Gun</option><option value="invisible">Invisibility</option><option value="magicalaura">Magical Aura</option></select></span></p>
-                    <button id="saveButton" class="save-button" disabled onclick="saveProfileChanges()">Save Changes</button>
-                </div>
-            </div>
+            <!-- In the profile-info div, after the saveButton -->
+<div class="profile-info" id="profileInfo" style="display:none;">
+    <h3><span id="profileUsername"></span></h3>
+    <div>
+        <p><strong>⭐ Elo:</strong> <span id="userElo"></span></p>
+        <p><strong>⏱️ Games:</strong> <span id="userGames"></span></p>
+        <p><strong>😃 Wins:</strong> <span id="userWins"></span></p>
+        <p><strong>😐 Draws:</strong> <span id="userDraws"></span></p>
+        <p><strong>😒 Losses:</strong> <span id="userLosses"></span></p>
+        <p><strong>⚽ Goals:</strong> <span id="userGoals"></span></p>
+        <p><strong>🅰️ Assists:</strong> <span id="userAssists"></span></p>
+        <p><strong>🥅 Clean Sheets:</strong> <span id="userCleansheets"></span></p>
+        <p id="vipRow"><strong>👑 VIP:</strong> <span style="display: flex; align-items: center; gap: 10px; flex-direction: row-reverse;"><span id="userVIP"></span><button id="buyVipButton" class="buy-button" style="display:none;" onclick="buyVip()">Buy VIP</button></span></p>
+        <p id="vipColorRow" style="display: none;"><strong>🎨 VIP Color:</strong><span><input type="color" id="vipColorPicker" onchange="markPendingChange('color', this.value)"></span></p>
+        <p id="vipMessageRow" style="display: none;"><strong>💬 VIP Message:</strong><span><input type="text" id="vipMessageInput" maxlength="10" placeholder="VIP Message" oninput="validateVipMessage(this); markPendingChange('message', this.value)"></span></p>
+        <p id="vipCelebrationRow" style="display: none;"><strong>🎉 VIP Celebration:</strong><span><select id="vipCelebrationSelect" onchange="markPendingChange('celebration', this.value)"><option value="none">None</option><option value="explosion">Explosion</option><option value="blinking">Blinking</option><option value="machinegun">Machine Gun</option><option value="invisible">Invisibility</option><option value="magicalaura">Magical Aura</option></select></span></p>
+        <button id="saveButton" class="save-button" disabled onclick="saveProfileChanges()">Save Changes</button>
+        <button id="logoutButton" class="logout-button">Logout</button>
+    </div>
+</div>
         </section>
         <!-- Home Page Content -->
         <section id="home">
     <h2>Player Rankings</h2>
+    <div class="ranking-controls" style="text-align: center; margin-bottom: 20px;">
+        <label for="sortMetric" style="font-size: 18px; margin-right: 10px; color: #fff;">Sort by:</label>
+        <select id="sortMetric" onchange="handleSortChange()">
+            <option value="points">Elo</option>
+            <option value="games_played">Games Played</option>
+            <option value="wins">Wins</option>
+            <option value="draws">Draws</option>
+            <option value="losses">Losses</option>
+            <option value="goals">Goals</option>
+            <option value="assists">Assists</option>
+            <option value="clean_sheets">Clean Sheets</option>
+        </select>
+    </div>
     <div class="ranking-table">
         <table>
             <thead>
                 <tr>
                     <th>Rank</th>
                     <th>Username</th>
-                    <th>Elo</th>
+                    <th id="metricHeader">Elo</th>
                 </tr>
             </thead>
             <tbody id="rankingBody">
@@ -1265,7 +1389,7 @@ nav a.discord-link:hover {
                 <tr class="your-position">
                     <td id="userRankCell">Not ranked (Login to see)</td>
                     <td id="userNameCell"></td>
-                    <td id="userEloCell"></td>
+                    <td id="userMetricCell"></td>
                 </tr>
             </tfoot>
         </table>
@@ -1298,7 +1422,7 @@ nav a.discord-link:hover {
     
     // Skip if cache is fresh
     if (Object.keys(cachedRankingsPages).length > 0 && now - lastRankingsFetchTime < rankingsCacheDuration) {
-        console.log('Using existing cache for rankings');
+        renderRankings(cachedRankingsPages[1], 1);
         return;
     }
 
@@ -1317,7 +1441,6 @@ nav a.discord-link:hover {
         lastRankingsFetchTime = now;
 
         const totalPages = firstPageData.pagination?.totalPages || 1;
-        console.log(`Pre-caching ${totalPages} pages of rankings`);
 
         // Fetch remaining pages in parallel
         const pagePromises = [];
@@ -1346,13 +1469,15 @@ nav a.discord-link:hover {
             }
         });
 
-        console.log(`Cached ${Object.keys(cachedRankingsPages).length} pages of rankings`);
+        // Sort and paginate based on current metric
+        const { sortedData } = sortAndPaginateRankings(currentSortMetric);
+        cachedRankingsPages = sortedData;
+
         
-        // Render the first page immediately
+        // Render the first page
         renderRankings(cachedRankingsPages[1], 1);
     } catch (err) {
         console.error('Error pre-caching rankings:', err);
-        // Fallback to rendering an error state
         const rankingBody = document.getElementById('rankingBody');
         rankingBody.innerHTML = `
             <tr>
@@ -1373,11 +1498,13 @@ function showPage(pageId) {
     // Hide all sections first
     document.querySelectorAll('section').forEach(section => {
         section.classList.remove('active');
+        section.style.display = 'none'; // Explicitly hide all sections
     });
 
     // Show the selected section with animation
     const activeSection = document.getElementById(pageId);
     activeSection.classList.add('active');
+    activeSection.style.display = 'block'; // Explicitly show the active section
     activeSection.style.opacity = '0';
     activeSection.style.transform = 'translateY(20px)';
     
@@ -1390,21 +1517,24 @@ function showPage(pageId) {
     // Load appropriate data for each page
     switch(pageId) {
         case 'home':
-            if (cachedRankings) {
-                renderRankings(cachedRankings, currentRankingsPage);
+            if (cachedRankingsPages[currentRankingsPage]) {
+                renderRankings(cachedRankingsPages[currentRankingsPage], currentRankingsPage);
             } else {
                 loadRankings(currentRankingsPage, rankingsPerPage);
             }
             break;
             
         case 'profile':
-            // Only show login form if not logged in
+            // Ensure correct visibility based on login status
+            const loginForm = document.getElementById('loginForm');
+            const profileInfo = document.getElementById('profileInfo');
+            
             if (!currentUserAuth) {
-                document.getElementById('loginForm').style.display = 'block';
-                document.getElementById('profileInfo').style.display = 'none';
+                loginForm.style.display = 'block';
+                profileInfo.style.display = 'none';
             } else {
-                document.getElementById('loginForm').style.display = 'none';
-                document.getElementById('profileInfo').style.display = 'block';
+                loginForm.style.display = 'none';
+                profileInfo.style.display = 'block';
                 updateProfileInfo(currentUserAuth);
             }
             break;
@@ -1426,7 +1556,6 @@ function showPage(pageId) {
 }
 
 function markPendingChange(type, value) {
-    console.log(`Marking change: ${type} = ${value}`);
     // Compare against original saved values
     if (type === 'color' && value !== originalVipSettings.color) {
         pendingChanges.color = value;
@@ -1438,14 +1567,12 @@ function markPendingChange(type, value) {
         pendingChanges[type] = null; // Reset if no change
     }
 
-    console.log('Pending changes:', pendingChanges);
     updateSaveButtonState();
 }
 
 function updateSaveButtonState() {
     const saveButton = document.getElementById('saveButton');
     const hasChanges = Object.values(pendingChanges).some(change => change !== null);
-    console.log('Has changes:', hasChanges, 'Pending changes:', pendingChanges);
     saveButton.disabled = !hasChanges;
 }
 
@@ -1460,11 +1587,9 @@ function showError(message, type = 'error') {
 }
 
 async function saveProfileChanges() {
-    console.log('saveProfileChanges called, pending changes:', pendingChanges);
     const userId = localStorage.getItem('userId');
     if (!userId) {
         showError('User not logged in');
-        console.log('No userId found in localStorage');
         return;
     }
 
@@ -1474,12 +1599,10 @@ async function saveProfileChanges() {
     if (pendingChanges.celebration !== null) updates.vipCelebration = pendingChanges.celebration;
 
     if (Object.keys(updates).length === 0) {
-        console.log('No updates to save');
         return;
     }
 
     try {
-        console.log('Sending updates:', updates);
 
         // Update VIP color
         if (updates.vip_color) {
@@ -1534,7 +1657,6 @@ async function saveProfileChanges() {
         if (updates.vipMessage) document.getElementById('vipMessageInput').value = updates.vipMessage;
         if (updates.vipCelebration) document.getElementById('vipCelebrationSelect').value = updates.vipCelebration;
 
-        console.log('Changes saved successfully');
         showError('Changes saved successfully!', 'success');
     } catch (error) {
         console.error('Error saving profile changes:', error);
@@ -1542,106 +1664,183 @@ async function saveProfileChanges() {
     }
 }
 
-async function updateProfileInfo(userId) {
-    try {
-        // Fetch player stats from /api/getPlayerProfile
-        const statsResponse = await fetch(`/api/getPlayerProfile?auth=${userId}`);
-        if (!statsResponse.ok) {
-            const errorData = await statsResponse.json();
-            throw new Error(errorData.error || 'Failed to fetch player stats');
+let currentSortMetric = 'points';
+function sortAndPaginateRankings(metric) {
+    // Combine all statsData and userData from cached pages
+    const allStats = [];
+    const allUserData = {};
+
+    Object.values(cachedRankingsPages).forEach(page => {
+        if (page.statsData) {
+            allStats.push(...page.statsData);
         }
-        const { profile: stats } = await statsResponse.json();
-
-        // Fetch VIP status from /api/vip-status
-        const vipResponse = await fetch('/api/vip-status', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ auth: userId })
-        });
-        if (!vipResponse.ok) {
-            const errorData = await vipResponse.json();
-            throw new Error(errorData.error || 'Failed to fetch VIP status');
+        if (page.userData) {
+            Object.assign(allUserData, page.userData); // Merge userData
         }
-        const vipData = await vipResponse.json();
+    });
 
-        // Fetch username from /api/login or another endpoint
-        const loginResponse = await fetch('/api/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ auth: userId })
-        });
-        const loginData = await loginResponse.json();
-        if (!loginResponse.ok) {
-            throw new Error(loginData.error || 'Failed to fetch username');
+    if (!allStats.length) return { sortedData: {}, totalPages: 1 };
+
+    // Sort based on the selected metric (descending order)
+    allStats.sort((a, b) => {
+        const valueA = a[metric] || 0;
+        const valueB = b[metric] || 0;
+        return valueB - valueA; // Descending
+    });
+
+    // Assign new ranks based on sorted order and find user rank
+    let userRank = null;
+    let userStat = null;
+    allStats.forEach((stat, index) => {
+        stat.rank = index + 1;
+        if (currentUserAuth && stat.auth === currentUserAuth) {
+            userRank = index + 1;
+            userStat = { ...stat };
         }
+    });
 
-        // Reset pending changes
-        pendingChanges = { color: null, message: null, celebration: null };
-        console.log('Profile loaded, pending changes reset:', pendingChanges);
+    // Paginate the sorted data
+    const totalItems = allStats.length;
+    const totalPages = Math.ceil(totalItems / rankingsPerPage);
+    const paginatedData = {};
 
-        // Store original VIP settings
-        originalVipSettings = {
-            color: vipData.vipColor || '#FFD700',
-            message: vipData.vipMessage || '',
-            celebration: vipData.vipCelebration || 'none'
+    for (let page = 1; page <= totalPages; page++) {
+        const start = (page - 1) * rankingsPerPage;
+        const end = start + rankingsPerPage;
+        paginatedData[page] = {
+            statsData: allStats.slice(start, end),
+            userData: allUserData, // Use merged userData
+            userStats: currentUserAuth && userStat ? { [currentUserAuth]: userStat } : {}, // Include user stats
+            pagination: {
+                currentPage: page,
+                totalItems,
+                totalPages,
+                itemsPerPage: rankingsPerPage
+            },
+            countRank: currentUserAuth && userRank ? userRank : null // Update user's rank
         };
-        console.log('Original VIP settings:', originalVipSettings);
+    }
 
-        updateSaveButtonState();
+    return { sortedData: paginatedData, totalPages };
+}
 
-        // Update profile info
-        document.getElementById('profileUsername').textContent = loginData.username || 'Unknown';
-        document.getElementById('userElo').textContent = stats.points || 0;
-        document.getElementById('userGames').textContent = stats.games_played || 0;
-        document.getElementById('userWins').textContent = stats.wins || 0;
-        document.getElementById('userDraws').textContent = stats.draws || 0;
-        document.getElementById('userLosses').textContent = stats.losses || 0;
-        document.getElementById('userGoals').textContent = stats.goals || 0;
-        document.getElementById('userAssists').textContent = stats.assists || 0;
-        document.getElementById('userCleansheets').textContent = stats.clean_sheets || 0;
-        document.getElementById('userVIP').textContent = vipData.isVip ? 'Yes' : 'No';
-        document.getElementById('buyVipButton').style.display = vipData.isVip ? 'none' : 'inline-block';
+function handleSortChange() {
+    const sortMetric = document.getElementById('sortMetric').value;
+    if (sortMetric === currentSortMetric) return;
 
-        // Always show VIP fields, but lock them for non-VIP users
-        document.getElementById('vipColorRow').style.display = 'flex';
-        document.getElementById('vipMessageRow').style.display = 'flex';
-        document.getElementById('vipCelebrationRow').style.display = 'flex';
+    currentSortMetric = sortMetric;
+    currentRankingsPage = 1; // Reset to first page on sort change
 
-        const vipColorPicker = document.getElementById('vipColorPicker');
-        const vipMessageInput = document.getElementById('vipMessageInput');
-        const vipCelebrationSelect = document.getElementById('vipCelebrationSelect');
+    // Update table header
+    const metricHeader = document.getElementById('metricHeader');
+    const metricLabels = {
+        points: 'Elo',
+        games_played: 'Games',
+        wins: 'Wins',
+        draws: 'Draws',
+        losses: 'Losses',
+        goals: 'Goals',
+        assists: 'Assists',
+        clean_sheets: 'Clean Sheets'
+    };
+    metricHeader.textContent = metricLabels[sortMetric] || 'Elo';
 
-        vipColorPicker.value = vipData.vipColor || '#FFD700';
-        vipMessageInput.value = vipData.vipMessage || '';
-        vipCelebrationSelect.value = vipData.vipCelebration || 'none';
+    // Sort and re-render rankings
+    if (Object.keys(cachedRankingsPages).length > 0) {
+        const { sortedData } = sortAndPaginateRankings(sortMetric);
+        cachedRankingsPages = sortedData; // Update cache with sorted data
+        renderRankings(cachedRankingsPages[1], 1);
+    } else {
+        loadRankings(1, rankingsPerPage); // Fallback to fetch if no cache
+    }
+}
+
+async function updateProfileInfo(auth) {
+    try {
+        const response = await fetch(`http://localhost:3000/api/getPlayerProfile?auth=${auth}&userAuth=${auth}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${auth}`
+            }
+        });
+
+        const contentType = response.headers.get('Content-Type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            console.error('Non-JSON response:', text.substring(0, 100));
+            throw new Error('Server returned non-JSON response');
+        }
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to fetch profile');
+        }
+
+        // Fetch VIP status
+        const vipResponse = await fetch('http://localhost:3000/api/vip-status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ auth })
+        });
+
+        const vipData = await vipResponse.json();
+        if (!vipResponse.ok) {
+            throw new Error(vipData.error || 'Failed to fetch VIP status');
+        }
+
+        // Update profile UI
+        document.getElementById('userElo').textContent = data.profile?.points || 0;
+        document.getElementById('userGames').textContent = data.profile?.games_played || 0;
+        document.getElementById('userWins').textContent = data.profile?.wins || 0;
+        document.getElementById('userDraws').textContent = data.profile?.draws || 0;
+        document.getElementById('userLosses').textContent = data.profile?.losses || 0;
+        document.getElementById('userGoals').textContent = data.profile?.goals || 0;
+        document.getElementById('userAssists').textContent = data.profile?.assists || 0;
+        document.getElementById('userCleansheets').textContent = data.profile?.clean_sheets || 0;
+
+        // References to VIP rows
+        const vipColorRow = document.getElementById('vipColorRow');
+        const vipMessageRow = document.getElementById('vipMessageRow');
+        const vipCelebrationRow = document.getElementById('vipCelebrationRow');
 
         if (vipData.isVip) {
-            // Enable fields for VIP users
-            vipColorPicker.disabled = false;
-            vipMessageInput.disabled = false;
-            vipCelebrationSelect.disabled = false;
+            document.getElementById('userVIP').textContent = 'Active';
+            vipColorRow.style.display = 'flex';
+            vipMessageRow.style.display = 'flex';
+            vipCelebrationRow.style.display = 'flex';
+            document.getElementById('vipColorPicker').value = vipData.vipColor || '#FFD700';
+            document.getElementById('vipMessageInput').value = vipData.vipMessage || '';
+            document.getElementById('vipCelebrationSelect').value = vipData.vipCelebration || 'none';
+            document.getElementById('buyVipButton').style.display = 'none';
+            document.getElementById('vipColorPicker').disabled = false;
+            document.getElementById('vipMessageInput').disabled = false;
+            document.getElementById('vipCelebrationSelect').disabled = false;
 
-            // Remove lock classes
-            vipColorPicker.classList.remove('locked');
-            vipMessageInput.classList.remove('locked');
-            vipCelebrationSelect.classList.remove('locked');
+            // Remove blur for VIP users
+            vipColorRow.classList.remove('non-vip-blur');
+            vipMessageRow.classList.remove('non-vip-blur');
+            vipCelebrationRow.classList.remove('non-vip-blur');
         } else {
-            // Disable fields for non-VIP users
-            vipColorPicker.disabled = true;
-            vipMessageInput.disabled = true;
-            vipCelebrationSelect.disabled = true;
+            document.getElementById('userVIP').textContent = 'Not VIP';
+            document.getElementById('buyVipButton').style.display = 'inline-block';
+            vipColorRow.style.display = 'flex';
+            vipMessageRow.style.display = 'flex';
+            vipCelebrationRow.style.display = 'flex';
+            document.getElementById('vipColorPicker').disabled = true;
+            document.getElementById('vipMessageInput').disabled = true;
+            document.getElementById('vipCelebrationSelect').disabled = true;
 
-            // Add lock classes
-            vipColorPicker.classList.add('locked');
-            vipMessageInput.classList.add('locked');
-            vipCelebrationSelect.classList.add('locked');
+            // Apply blur for non-VIP users
+            vipColorRow.classList.add('non-vip-blur');
+            vipMessageRow.classList.add('non-vip-blur');
+            vipCelebrationRow.classList.add('non-vip-blur');
         }
-
-        document.getElementById('loginForm').style.display = 'none';
-        document.getElementById('profileInfo').style.display = 'block';
     } catch (error) {
         console.error('Error fetching profile:', error);
-        showError('Failed to load profile');
+        throw error;
     }
 }
 
@@ -1956,7 +2155,6 @@ function loadNationPaths(nation) {
     errorMessage.style.display = 'block';
 
     try {
-        console.log('Attempting login for username:', username);
         const response = await fetch('/api/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1968,13 +2166,13 @@ function loadNationPaths(nation) {
         if (!response.ok || !data || !data.auth) {
             throw new Error(data?.error || 'Login failed');
         }
-
-        console.log('Login successful, setting auth:', data.auth);
         currentUserAuth = data.auth;
         const expiry = rememberMe ? Date.now() + 30 * 24 * 60 * 60 * 1000 : Date.now() + 24 * 60 * 60 * 1000; // 30 days or 1 day
         localStorage.setItem('authData', JSON.stringify({ auth: data.auth, username, expiry }));
         localStorage.setItem('userId', data.auth);
         localStorage.setItem('currentUserAuth', data.auth);
+        // Set rememberMe in localStorage
+        localStorage.setItem('rememberMe', rememberMe);
 
         // Update profile UI
         loginForm.style.display = 'none';
@@ -1996,35 +2194,45 @@ function loadNationPaths(nation) {
             message: data.vipMessage || '',
             celebration: data.vipCelebration || 'none'
         };
-        console.log('Original VIP settings:', originalVipSettings);
         updateSaveButtonState();
+
+        // References to VIP rows
+        const vipColorRow = document.getElementById('vipColorRow');
+        const vipMessageRow = document.getElementById('vipMessageRow');
+        const vipCelebrationRow = document.getElementById('vipCelebrationRow');
 
         // Handle VIP status
         if (data.isVIP) {
             document.getElementById('userVIP').textContent = 'Active';
-            document.getElementById('vipColorRow').style.display = 'flex';
-            document.getElementById('vipMessageRow').style.display = 'flex';
-            document.getElementById('vipCelebrationRow').style.display = 'flex';
+            vipColorRow.style.display = 'flex';
+            vipMessageRow.style.display = 'flex';
+            vipCelebrationRow.style.display = 'flex';
             document.getElementById('vipColorPicker').value = data.vip_color || '#FFD700';
             document.getElementById('vipMessageInput').value = data.vipMessage || '';
             document.getElementById('vipCelebrationSelect').value = data.vipCelebration || 'none';
             document.getElementById('buyVipButton').style.display = 'none';
             
-            // Enable VIP fields
+            // Enable VIP fields and remove blur
             document.getElementById('vipColorPicker').disabled = false;
             document.getElementById('vipMessageInput').disabled = false;
             document.getElementById('vipCelebrationSelect').disabled = false;
+            vipColorRow.classList.remove('non-vip-blur');
+            vipMessageRow.classList.remove('non-vip-blur');
+            vipCelebrationRow.classList.remove('non-vip-blur');
         } else {
             document.getElementById('userVIP').textContent = 'Not VIP';
             document.getElementById('buyVipButton').style.display = 'inline-block';
-            document.getElementById('vipColorRow').style.display = 'flex';
-            document.getElementById('vipMessageRow').style.display = 'flex';
-            document.getElementById('vipCelebrationRow').style.display = 'flex';
+            vipColorRow.style.display = 'flex';
+            vipMessageRow.style.display = 'flex';
+            vipCelebrationRow.style.display = 'flex';
             
-            // Disable VIP fields for non-VIP users
+            // Disable VIP fields and apply blur
             document.getElementById('vipColorPicker').disabled = true;
             document.getElementById('vipMessageInput').disabled = true;
             document.getElementById('vipCelebrationSelect').disabled = true;
+            vipColorRow.classList.add('non-vip-blur');
+            vipMessageRow.classList.add('non-vip-blur');
+            vipCelebrationRow.classList.add('non-vip-blur');
         }
 
         errorMessage.textContent = 'Login successful!';
@@ -2222,31 +2430,43 @@ async function loadRankings(page = 1, limit = 250) {
     try {
         // Check if we have cached data for this page and if cache is fresh
         if (cachedRankingsPages[page] && now - lastRankingsFetchTime < rankingsCacheDuration) {
-            console.log(`Using cached rankings for page ${page}`);
             currentRankingsPage = page;
             renderRankings(cachedRankingsPages[page], page);
         } else {
-            // Fetch data for the specific page
+            // Fetch data for all pages to ensure sorting works
             currentRankingsPage = page;
             const authQuery = currentUserAuth ? `&auth=${currentUserAuth}` : '';
-            const response = await fetch(`/api/getRankings?page=${page}&limit=${limit}${authQuery}`);
-            const data = await response.json();
+            const firstPageResponse = await fetch(`/api/getRankings?page=1&limit=${limit}${authQuery}`);
+            const firstPageData = await firstPageResponse.json();
 
-            if (!response.ok || !data || !data.statsData) {
-                throw new Error(data?.error || 'Error loading rankings');
+            if (!firstPageResponse.ok || !firstPageData || !firstPageData.statsData) {
+                throw new Error(firstPageData?.error || 'Error loading rankings');
             }
 
-            console.log('API Response for page', page, {
-                statsDataLength: data.statsData.length,
-                totalItems: data.pagination.totalItems,
-                totalPages: data.pagination.totalPages
+            cachedRankingsPages[1] = firstPageData;
+            const totalPages = firstPageData.pagination?.totalPages || 1;
+
+            // Fetch remaining pages
+            const pagePromises = [];
+            for (let p = 2; p <= totalPages; p++) {
+                pagePromises.push(
+                    fetch(`/api/getRankings?page=${p}&limit=${limit}${authQuery}`)
+                        .then(res => res.json())
+                        .then(data => ({ page: p, data }))
+                );
+            }
+
+            const results = await Promise.all(pagePromises);
+            results.forEach(({ page, data }) => {
+                if (data.statsData) cachedRankingsPages[page] = data;
             });
 
-            // Update cache for this page
-            cachedRankingsPages[page] = data;
             lastRankingsFetchTime = now;
-            
-            renderRankings(data, page);
+
+            // Sort and paginate based on current metric
+            const { sortedData } = sortAndPaginateRankings(currentSortMetric);
+            cachedRankingsPages = sortedData;
+            renderRankings(cachedRankingsPages[page], page);
         }
     } catch (err) {
         console.error('Error loading rankings:', err);
@@ -2268,7 +2488,7 @@ function renderRankings(data, currentPage) {
     const rankingBody = document.getElementById('rankingBody');
     const userRankCell = document.getElementById('userRankCell');
     const userNameCell = document.getElementById('userNameCell');
-    const userEloCell = document.getElementById('userEloCell');
+    const userMetricCell = document.getElementById('userMetricCell');
     const prevPageButton = document.getElementById('prevPage');
     const nextPageButton = document.getElementById('nextPage');
     const pageNumbersContainer = document.getElementById('pageNumbers');
@@ -2296,7 +2516,7 @@ function renderRankings(data, currentPage) {
             row.innerHTML = `
                 <td>${stat.rank}</td>
                 <td>${username}</td>
-                <td>${stat.points ?? 0}</td>
+                <td>${stat[currentSortMetric] ?? 0}</td>
             `;
             row.dataset.auth = stat.auth;
             row.addEventListener('click', () => showPlayerProfile(stat.auth, username));
@@ -2312,11 +2532,11 @@ function renderRankings(data, currentPage) {
         const username = data.userData[currentUserAuth]?.nicknames?.[0] || 'Unknown';
         userRankCell.textContent = data.countRank || 'Unranked';
         userNameCell.textContent = 'You';
-        userEloCell.textContent = userStat.points ?? 0;
+        userMetricCell.textContent = userStat[currentSortMetric] ?? 0;
     } else {
         userRankCell.textContent = 'N/A';
         userNameCell.textContent = 'Not logged in (Login to see)';
-        userEloCell.textContent = 'N/A';
+        userMetricCell.textContent = 'N/A';
     }
 
     // Update pagination controls
@@ -2352,9 +2572,8 @@ function renderRankings(data, currentPage) {
             pageNumber.className = `page-number ${i === currentPage ? 'active' : ''}`;
             pageNumber.textContent = i;
             pageNumber.onclick = () => {
-                console.log('Page number clicked:', i);
                 currentRankingsPage = i;
-                loadRankings(i, rankingsPerPage);
+                renderRankings(cachedRankingsPages[i], i);
             };
             pageNumbersContainer.appendChild(pageNumber);
         }
@@ -2362,97 +2581,292 @@ function renderRankings(data, currentPage) {
 
     // Add event listeners to pagination buttons
     prevClone.onclick = () => {
-        console.log('Previous button clicked, currentPage:', currentPage);
         if (currentPage > 1) {
             currentRankingsPage = currentPage - 1;
-            loadRankings(currentRankingsPage, rankingsPerPage);
+            renderRankings(cachedRankingsPages[currentRankingsPage], currentRankingsPage);
         }
     };
 
     nextClone.onclick = () => {
-        console.log('Next button clicked, currentPage:', currentPage);
         if (currentPage < totalPages) {
             currentRankingsPage = currentPage + 1;
-            loadRankings(currentRankingsPage, rankingsPerPage);
+            renderRankings(cachedRankingsPages[currentRankingsPage], currentRankingsPage);
         }
     };
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // Existing auth check code
     const authData = localStorage.getItem('authData');
-    preCacheAllRankings();
+    const rememberMe = localStorage.getItem('rememberMe') === 'true';
+
+    // Pre-load rankings data
+    await loadRankings(currentRankingsPage, rankingsPerPage);
+
+    // Add logout button event listener
+    const logoutButton = document.getElementById('logoutButton');
+    if (logoutButton) {
+        logoutButton.addEventListener('click', logout);
+    }
+
+    // If rememberMe is false, clear localStorage and show login form
+    if (!rememberMe) {
+        localStorage.removeItem('authData');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('currentUserAuth');
+        localStorage.removeItem('rememberMe');
+        return;
+    }
+
+    // Proceed with auto-login only if authData exists and rememberMe is true
     if (authData) {
         const { auth, username, expiry } = JSON.parse(authData);
+        const expiryTime = 30 * 24 * 60 * 60 * 1000; // 30 days for rememberMe users
+
+        // Check if session has expired
         if (Date.now() >= expiry) {
             localStorage.removeItem('authData');
             localStorage.removeItem('userId');
+            localStorage.removeItem('currentUserAuth');
+            localStorage.removeItem('rememberMe');
+            showError('Your session has expired. Please log in again.');
+            showPage('profile');
             return;
         }
 
-        try {
-            const res = await fetch('http://localhost:3000/api/login/verify', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${auth}`
-                }
-            });
-            const data = await res.json();
-            if (res.ok) {
-                currentUserAuth = auth;
-                localStorage.setItem('userId', auth);
-                document.getElementById('loginForm').style.display = 'none';
-                document.getElementById('profileInfo').style.display = 'block';
-                document.getElementById('profileUsername').textContent = username;
-                document.getElementById('userElo').textContent = data.stats.points;
-                document.getElementById('userGames').textContent = data.stats.games_played;
-                document.getElementById('userWins').textContent = data.stats.wins;
-                document.getElementById('userDraws').textContent = data.stats.draws;
-                document.getElementById('userLosses').textContent = data.stats.losses;
-                document.getElementById('userGoals').textContent = data.stats.goals;
-                document.getElementById('userAssists').textContent = data.stats.assists;
-                document.getElementById('userCleansheets').textContent = data.stats.clean_sheets;
+        const verifyTokenWithRetry = async (auth, retries = 3, delay = 2000) => {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const res = await fetch('http://localhost:3000/api/login/verify', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${auth}`
+                        }
+                    });
 
-                pendingChanges = { color: null, message: null, celebration: null };
-                originalVipSettings = {
-                    color: data.vip_color || '#FFD700',
-                    message: data.vipMessage || '',
-                    celebration: data.vipCelebration || 'none'
-                };
-                updateSaveButtonState();
-                if (data.isVIP) {
-                    document.getElementById('userVIP').textContent = 'Active';
-                    document.getElementById('vipColorRow').style.display = 'flex';
-                    document.getElementById('vipMessageRow').style.display = 'flex';
-                    document.getElementById('vipCelebrationRow').style.display = 'flex';
-                    document.getElementById('vipColorPicker').value = data.vip_color || '#FFD700';
-                    document.getElementById('vipMessageInput').value = data.vipMessage || '';
-                    document.getElementById('vipCelebrationSelect').value = data.vipCelebration || 'none';
-                } else {
-                    document.getElementById('userVIP').textContent = 'Not VIP';
-                    document.getElementById('buyVipButton').style.display = 'inline-block';
+                    const contentType = res.headers.get('Content-Type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        const text = await res.text();
+                        console.error('Non-JSON response:', text.substring(0, 100));
+                        throw new Error('Server returned non-JSON response');
+                    }
+
+                    const data = await res.json();
+                    if (res.ok) {
+                        return data;
+                    } else {
+                        throw new Error(data.error || 'Token verification failed');
+                    }
+                } catch (err) {
+                    console.error(`Verification attempt ${i + 1} failed:`, err);
+                    if (i === retries - 1) throw err;
+                    await new Promise(resolve => setTimeout(resolve, delay));
                 }
+            }
+        };
+
+        try {
+            const data = await verifyTokenWithRetry(auth);
+
+            // Successful verification
+            currentUserAuth = auth;
+            localStorage.setItem('userId', auth);
+            localStorage.setItem('currentUserAuth', auth);
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('profileInfo').style.display = 'block';
+            document.getElementById('profileUsername').textContent = username;
+
+            // Update profile UI
+            document.getElementById('userElo').textContent = data.stats?.points || 0;
+            document.getElementById('userGames').textContent = data.stats?.games_played || 0;
+            document.getElementById('userWins').textContent = data.stats?.wins || 0;
+            document.getElementById('userDraws').textContent = data.stats?.draws || 0;
+            document.getElementById('userLosses').textContent = data.stats?.losses || 0;
+            document.getElementById('userGoals').textContent = data.stats?.goals || 0;
+            document.getElementById('userAssists').textContent = data.stats?.assists || 0;
+            document.getElementById('userCleansheets').textContent = data.stats?.clean_sheets || 0;
+
+            pendingChanges = { color: null, message: null, celebration: null };
+            originalVipSettings = {
+                color: data.vip_color || '#FFD700',
+                message: data.vipMessage || '',
+                celebration: data.vipCelebration || 'none'
+            };
+            updateSaveButtonState();
+
+            // References to VIP rows
+            const vipColorRow = document.getElementById('vipColorRow');
+            const vipMessageRow = document.getElementById('vipMessageRow');
+            const vipCelebrationRow = document.getElementById('vipCelebrationRow');
+
+            if (data.isVIP) {
+                document.getElementById('userVIP').textContent = 'Active';
+                vipColorRow.style.display = 'flex';
+                vipMessageRow.style.display = 'flex';
+                vipCelebrationRow.style.display = 'flex';
+                document.getElementById('vipColorPicker').value = data.vip_color || '#FFD700';
+                document.getElementById('vipMessageInput').value = data.vipMessage || '';
+                document.getElementById('vipCelebrationSelect').value = data.vipCelebration || 'none';
+                document.getElementById('buyVipButton').style.display = 'none';
+                document.getElementById('vipColorPicker').disabled = false;
+                document.getElementById('vipMessageInput').disabled = false;
+                document.getElementById('vipCelebrationSelect').disabled = false;
+
+                // Remove blur for VIP users
+                vipColorRow.classList.remove('non-vip-blur');
+                vipMessageRow.classList.remove('non-vip-blur');
+                vipCelebrationRow.classList.remove('non-vip-blur');
             } else {
-                localStorage.removeItem('authData');
-                localStorage.removeItem('userId');
+                document.getElementById('userVIP').textContent = 'Not VIP';
+                document.getElementById('buyVipButton').style.display = 'inline-block';
+                vipColorRow.style.display = 'flex';
+                vipMessageRow.style.display = 'flex';
+                vipCelebrationRow.style.display = 'flex';
+                document.getElementById('vipColorPicker').disabled = true;
+                document.getElementById('vipMessageInput').disabled = true;
+                document.getElementById('vipCelebrationSelect').disabled = true;
+
+                // Apply blur for non-VIP users
+                vipColorRow.classList.add('non-vip-blur');
+                vipMessageRow.classList.add('non-vip-blur');
+                vipCelebrationRow.classList.add('non-vip-blur');
+            }
+
+            if (document.getElementById('home').classList.contains('active')) {
+                await loadRankings(currentRankingsPage, rankingsPerPage);
             }
         } catch (error) {
             console.error('Auto-login error:', error);
-            localStorage.removeItem('authData');
-            localStorage.removeItem('userId');
+            // For rememberMe users, keep session and attempt to show profile
+            currentUserAuth = auth;
+            localStorage.setItem('userId', auth);
+            localStorage.setItem('currentUserAuth', auth);
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('profileInfo').style.display = 'block';
+            document.getElementById('profileUsername').textContent = username;
+            document.getElementById('userElo').textContent = 'Loading...';
+            document.getElementById('userGames').textContent = 'Loading...';
+            document.getElementById('userWins').textContent = 'Loading...';
+            document.getElementById('userDraws').textContent = 'Loading...';
+            document.getElementById('userLosses').textContent = 'Loading...';
+            document.getElementById('userGoals').textContent = 'Loading...';
+            document.getElementById('userAssists').textContent = 'Loading...';
+            document.getElementById('userCleansheets').textContent = 'Loading...';
+            document.getElementById('userVIP').textContent = 'Loading...';
+            document.getElementById('buyVipButton').style.display = 'none';
+
+            // Apply blur initially until profile info is loaded
+            const vipColorRow = document.getElementById('vipColorRow');
+            const vipMessageRow = document.getElementById('vipMessageRow');
+            const vipCelebrationRow = document.getElementById('vipCelebrationRow');
+            vipColorRow.classList.add('non-vip-blur');
+            vipMessageRow.classList.add('non-vip-blur');
+            vipCelebrationRow.classList.add('non-vip-blur');
+
+            try {
+                await updateProfileInfo(auth);
+            } catch (err) {
+                console.error('Failed to load profile info:', err);
+                showError('Unable to load profile data. Please try again.');
+            }
         }
     }
 
-    // Pre-load rankings data immediately
-    await loadRankings(currentRankingsPage, rankingsPerPage);
-    
-    // Set up periodic refresh (every 60 seconds)
+    // Set checkbox state
+    document.getElementById('rememberMe').checked = rememberMe;
+
+    // Periodic rankings refresh
     setInterval(() => {
         if (document.getElementById('home').classList.contains('active')) {
             loadRankings(currentRankingsPage, rankingsPerPage);
         }
     }, 60000);
+
+    // Periodic profile refresh for rememberMe users
+    if (rememberMe && authData) {
+        const { auth } = JSON.parse(authData);
+        setInterval(async () => {
+            try {
+                const res = await fetch(`http://localhost:3000/api/getPlayerProfile?auth=${auth}&userAuth=${auth}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${auth}`
+                    }
+                });
+                const contentType = res.headers.get('Content-Type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('Server returned non-JSON response');
+                }
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || 'Profile fetch failed');
+                }
+
+                const vipRes = await fetch('http://localhost:3000/api/vip-status', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ auth })
+                });
+                const vipData = await vipRes.json();
+                if (!vipRes.ok) {
+                    throw new Error(vipData.error || 'VIP status fetch failed');
+                }
+
+                // Update profile UI
+                document.getElementById('userElo').textContent = data.profile?.points || 0;
+                document.getElementById('userGames').textContent = data.profile?.games_played || 0;
+                document.getElementById('userWins').textContent = data.profile?.wins || 0;
+                document.getElementById('userDraws').textContent = data.profile?.draws || 0;
+                document.getElementById('userLosses').textContent = data.profile?.losses || 0;
+                document.getElementById('userGoals').textContent = data.profile?.goals || 0;
+                document.getElementById('userAssists').textContent = data.profile?.assists || 0;
+                document.getElementById('userCleansheets').textContent = data.profile?.clean_sheets || 0;
+
+                // References to VIP rows
+                const vipColorRow = document.getElementById('vipColorRow');
+                const vipMessageRow = document.getElementById('vipMessageRow');
+                const vipCelebrationRow = document.getElementById('vipCelebrationRow');
+
+                if (vipData.isVip) {
+                    document.getElementById('userVIP').textContent = 'Active';
+                    vipColorRow.style.display = 'flex';
+                    vipMessageRow.style.display = 'flex';
+                    vipCelebrationRow.style.display = 'flex';
+                    document.getElementById('vipColorPicker').value = vipData.vipColor || '#FFD700';
+                    document.getElementById('vipMessageInput').value = vipData.vipMessage || '';
+                    document.getElementById('vipCelebrationSelect').value = vipData.vipCelebration || 'none';
+                    document.getElementById('buyVipButton').style.display = 'none';
+                    document.getElementById('vipColorPicker').disabled = false;
+                    document.getElementById('vipMessageInput').disabled = false;
+                    document.getElementById('vipCelebrationSelect').disabled = false;
+
+                    // Remove blur effect for VIP users
+                    vipColorRow.classList.remove('non-vip-blur');
+                    vipMessageRow.classList.remove('non-vip-blur');
+                    vipCelebrationRow.classList.remove('non-vip-blur');
+                } else {
+                    document.getElementById('userVIP').textContent = 'Not VIP';
+                    document.getElementById('buyVipButton').style.display = 'inline-block';
+                    vipColorRow.style.display = 'flex';
+                    vipMessageRow.style.display = 'flex';
+                    vipCelebrationRow.style.display = 'flex';
+                    document.getElementById('vipColorPicker').disabled = true;
+                    document.getElementById('vipMessageInput').disabled = true;
+                    document.getElementById('vipCelebrationSelect').disabled = true;
+
+                    // Apply blur effect for non-VIP users
+                    vipColorRow.classList.add('non-vip-blur');
+                    vipMessageRow.classList.add('non-vip-blur');
+                    vipCelebrationRow.classList.add('non-vip-blur');
+                }
+            } catch (err) {
+                console.error('Periodic profile fetch failed:', err);
+            }
+        }, 60000); // Refresh every minute
+    }
 });
 
 function renderProfile(data, username, container) {
@@ -2469,6 +2883,25 @@ function renderProfile(data, username, container) {
             <p><strong>🥅 Clean Sheets:</strong> <span>${data.clean_sheets}</span></p>
         </div>
     `;
+}
+
+    function logout() {
+    // Clear all localStorage
+    localStorage.clear();
+    
+    // Reset global variables
+    currentUserAuth = null;
+    pendingChanges = { color: null, message: null, celebration: null };
+    originalVipSettings = { color: null, message: null, celebration: null };
+    
+    // Clear any VIP check intervals if they exist
+    if (vipCheckInterval) {
+        clearInterval(vipCheckInterval);
+        vipCheckInterval = null;
+    }
+    
+    // Refresh the page
+    window.location.reload();
 }
 
     async function showPlayerProfile(authId, username) {
@@ -2489,12 +2922,12 @@ function renderProfile(data, username, container) {
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.5); /* Semi-transparent black overlay */
-            backdrop-filter: blur(5px); /* Apply blur effect */
-            -webkit-backdrop-filter: blur(5px); /* Safari support */
-            z-index: 999; /* Below modal (z-index: 1000) */
-            opacity: 0; /* Start invisible */
-            transition: opacity 0.3s ease; /* Match modal transition */
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            z-index: 999;
+            opacity: 0;
+            transition: opacity 0.3s ease;
         `;
 
         // Create modal
@@ -2519,49 +2952,58 @@ function renderProfile(data, username, container) {
         `;
         closeButton.onmouseover = () => (closeButton.style.transform = 'scale(1.2)');
         closeButton.onmouseout = () => (closeButton.style.transform = 'scale(1)');
-        closeButton.onclick = () => {
-            // Add zoom-out effect and fade out backdrop
+
+        // Function to close the modal
+        const closeModal = () => {
             modal.style.transform = 'translate(-50%, -50%) scale(0)';
             modal.style.opacity = '0';
             backdrop.style.opacity = '0';
             setTimeout(() => {
-                document.body.removeChild(modal);
-                document.body.removeChild(backdrop); // Remove backdrop
-            }, 300); // Match transition duration
+                if (document.body.contains(modal)) document.body.removeChild(modal);
+                if (document.body.contains(backdrop)) document.body.removeChild(backdrop);
+            }, 300);
         };
+
+        // Close button event listener
+        closeButton.onclick = closeModal;
+
+        // Backdrop click event listener to close modal
+        backdrop.onclick = (event) => {
+            if (event.target === backdrop) {
+                closeModal();
+            }
+        };
+
         modal.appendChild(closeButton);
 
-        const menuWidth = 240; // Adjust to match your menu’s width in pixels
+        const menuWidth = 240;
         modal.style.cssText = `
             position: fixed;
             top: 50%;
             left: calc(50% + ${menuWidth / 2}px);
-            transform: translate(-50%, -50%) scale(0); /* Start scaled down */
-            opacity: 0; /* Start invisible */
+            transform: translate(-50%, -50%) scale(0);
+            opacity: 0;
             background: linear-gradient(135deg, #1E40AF, #3B82F6);
             padding: 30px;
             border-radius: 15px;
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-            z-index: 1000; /* Above backdrop */
+            z-index: 1000;
             max-width: 450px;
             width: 90%;
             color: #fff;
-            transition: transform 0.3s ease, opacity 0.3s ease; /* Animate scale and opacity */
+            transition: transform 0.3s ease, opacity 0.3s ease;
             overflow: hidden;
             box-sizing: border-box;
         `;
 
-        // Add backdrop and modal to DOM
         document.body.appendChild(backdrop);
         document.body.appendChild(modal);
 
-        // Trigger zoom-in effect and fade in backdrop after a slight delay
         setTimeout(() => {
             modal.style.transform = 'translate(-50%, -50%) scale(1)';
             modal.style.opacity = '1';
-            backdrop.style.opacity = '1'; // Fade in backdrop
-        }, 10); // Small delay ensures transition is applied
-
+            backdrop.style.opacity = '1';
+        }, 10);
     } catch (err) {
         console.error('Error showing player profile:', err);
     }
